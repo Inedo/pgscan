@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30011.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pgscan", "pgscan\pgscan.csproj", "{0C293E2B-7010-4019-9CFD-A08D7143FDD0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {30E94B65-D331-4996-A518-DE5004C51E2D}
+	EndGlobalSection
+EndGlobal
