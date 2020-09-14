@@ -35,6 +35,8 @@ namespace Inedo.DependencyScan
             }
             catch (PgScanException ex)
             {
+                Console.Error.WriteLine(ex.Message);
+
                 if (ex.WriteUsage)
                     Usage();
 
@@ -90,6 +92,7 @@ namespace Inedo.DependencyScan
 
             args.Named.TryGetValue("consumer-package-name", out var consumerName);
             args.Named.TryGetValue("consumer-package-group", out var consumerGroup);
+            args.Named.TryGetValue("api-key", out var apiKey);
 
             string consumerFeed = null;
             string consumerUrl = null;
@@ -108,6 +111,8 @@ namespace Inedo.DependencyScan
             {
                 foreach (var package in project.Dependencies)
                 {
+                    Console.WriteLine($"Publishing consumer data for {package}...");
+
                     client.RecordPackageDependency(
                         package,
                         packageFeed,
@@ -118,10 +123,13 @@ namespace Inedo.DependencyScan
                             Group = consumerGroup,
                             Feed = consumerFeed,
                             Url = consumerUrl
-                        }
+                        },
+                        apiKey
                     );
                 }
             }
+
+            Console.WriteLine("Dependencies published!");
         }
 
         private static string GetImplicitTypeName(string fileName)
@@ -153,6 +161,7 @@ namespace Inedo.DependencyScan
             Console.WriteLine("  --consumer-package-name=<name>");
             Console.WriteLine("  --consumer-package-version=<version>");
             Console.WriteLine("  --consumer-package-group=<group>");
+            Console.WriteLine("  --api-key=<ProGet API key>");
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  report\tDisplay dependency data");

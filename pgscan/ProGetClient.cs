@@ -1,12 +1,11 @@
 ﻿using System.IO;
 using System.Net;
-using System.Text;
-
 #if NETCOREAPP3_1
 using System.Text.Json;
 using System.Text.Json.Serialization;
 #else
 using Newtonsoft.Json;
+using System.Text;
 using JsonPropertyNameAttribute = Newtonsoft.Json.JsonPropertyAttribute;
 #endif
 
@@ -21,11 +20,13 @@ namespace Inedo.DependencyScan
 
         public string BaseUrl { get; }
 
-        public void RecordPackageDependency(Package package, string feed, PackageConsumer consumer)
+        public void RecordPackageDependency(Package package, string feed, PackageConsumer consumer, string apiKey)
         {
             var request = WebRequest.CreateHttp(this.BaseUrl + "/api/dependencies/dependents");
             request.Method = "POST";
             request.ContentType = "application/json";
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                request.Headers.Add("X-ApiKey", apiKey);
 
             using (var requestStream = request.GetRequestStream())
             {
@@ -55,9 +56,9 @@ namespace Inedo.DependencyScan
                     var message = new char[8192];
                     int length = reader.ReadBlock(message, 0, message.Length);
                     if (length > 0)
-                        throw new PgScanException($"{(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}");
+                        throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}");
                     else
-                        throw new PgScanException($"{(int)response.StatusCode} {response.StatusDescription}");
+                        throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}");
                 }
             }
         }
@@ -79,13 +80,13 @@ namespace Inedo.DependencyScan
             [JsonPropertyName("packageName")]
             public string PackageName => this.p.Name;
             [JsonPropertyName("groupName")]
-            public string PackageGroup => this.p.Group;
+            public string PackageGroup => this.p.Group ?? string.Empty;
             [JsonPropertyName("version")]
             public string Version => this.p.Version;
             [JsonPropertyName("dependentPackageName")]
             public string DependentPackageName => this.c.Name;
             [JsonPropertyName("dependentGroupName")]
-            public string DependentPackageGroup => this.c.Group;
+            public string DependentPackageGroup => this.c.Group ?? string.Empty;
             [JsonPropertyName("dependentVersion")]
             public string DependentPackageVersion => this.c.Version;
         }
