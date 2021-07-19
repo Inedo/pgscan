@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net;
 #if NETCOREAPP3_1
 using System.Text.Json;
@@ -33,12 +34,18 @@ namespace Inedo.DependencyScan
 #if NETCOREAPP3_1
                 using (var writer = new Utf8JsonWriter(requestStream))
                 {
-                    JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer));
+                    JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer), new JsonSerializerOptions
+                    {
+                        IgnoreNullValues = true
+                    });
                 }
 #else
                 using (var writer = new StreamWriter(requestStream, Encoding.UTF8))
                 {
-                    new JsonSerializer().Serialize(writer, new DependentPackage(package, feed, consumer));
+                    new JsonSerializer
+                    {
+                        NullValueHandling = NullValueHandling.Ignore
+                    }.Serialize(writer, new DependentPackage(package, feed, consumer));
                 }
 #endif
             }
@@ -89,6 +96,10 @@ namespace Inedo.DependencyScan
             public string DependentPackageGroup => this.c.Group ?? string.Empty;
             [JsonPropertyName("dependentVersion")]
             public string DependentPackageVersion => this.c.Version;
+            [JsonPropertyName("dependentFeed")]
+            public string DependentPackageFeed => this.c.Feed;
+            [JsonPropertyName("dependentUrl")]
+            public object DependentPackageUrl => this.c.Url;
         }
     }
 }
