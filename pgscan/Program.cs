@@ -52,7 +52,7 @@ namespace Inedo.DependencyScan
                 throw new PgScanException("Missing required argument --input=<input file name>");
 
             args.Named.TryGetValue("type", out var typeName);
-            typeName = typeName ?? GetImplicitTypeName(inputFileName);
+            typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
 
@@ -81,7 +81,7 @@ namespace Inedo.DependencyScan
             var inputFileName = args.GetRequiredNamed("input");
 
             args.Named.TryGetValue("type", out var typeName);
-            typeName = typeName ?? GetImplicitTypeName(inputFileName);
+            typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
 
@@ -134,18 +134,12 @@ namespace Inedo.DependencyScan
 
         private static string GetImplicitTypeName(string fileName)
         {
-            switch (Path.GetExtension(fileName).ToLowerInvariant())
+            return Path.GetExtension(fileName).ToLowerInvariant() switch
             {
-                case ".sln":
-                case ".csproj":
-                    return "nuget";
-
-                case ".json":
-                    return "npm";
-
-                default:
-                    return Path.GetFileName(fileName).Equals("requirements.txt", StringComparison.OrdinalIgnoreCase) ? "pypi" : null;
-            }
+                ".sln" or ".csproj" => "nuget",
+                ".json" => "npm",
+                _ => Path.GetFileName(fileName).Equals("requirements.txt", StringComparison.OrdinalIgnoreCase) ? "pypi" : null
+            };
         }
 
         private static void Usage()

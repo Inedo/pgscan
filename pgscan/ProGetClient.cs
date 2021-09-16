@@ -1,12 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Text;
 #if NETCOREAPP3_1
 using System.Text.Json;
 using System.Text.Json.Serialization;
 #else
 using Newtonsoft.Json;
-using System.Text;
 using JsonPropertyNameAttribute = Newtonsoft.Json.JsonPropertyAttribute;
 #endif
 
@@ -52,21 +52,17 @@ namespace Inedo.DependencyScan
 
             try
             {
-                using (var response = request.GetResponse())
-                {
-                }
+                using var response = request.GetResponse();
             }
             catch (WebException ex) when (ex.Response is HttpWebResponse response)
             {
-                using (var reader = new StreamReader(response.GetResponseStream()))
-                {
-                    var message = new char[8192];
-                    int length = reader.ReadBlock(message, 0, message.Length);
-                    if (length > 0)
-                        throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}");
-                    else
-                        throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}");
-                }
+                using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
+                var message = new char[8192];
+                int length = reader.ReadBlock(message, 0, message.Length);
+                if (length > 0)
+                    throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}");
+                else
+                    throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}");
             }
         }
 

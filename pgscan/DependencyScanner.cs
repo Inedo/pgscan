@@ -14,17 +14,13 @@ namespace Inedo.DependencyScan
 
         public static DependencyScanner GetScanner(string typeName)
         {
-            switch (typeName.ToLowerInvariant())
+            return typeName.ToLowerInvariant() switch
             {
-                case "nuget":
-                    return new NuGetDependencyScanner();
-                case "npm":
-                    return new NpmDependencyScanner();
-                case "pypi":
-                    return new PypiDependencyScanner();
-                default:
-                    throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
-            }
+                "nuget" => new NuGetDependencyScanner(),
+                "npm" => new NpmDependencyScanner(),
+                "pypi" => new PypiDependencyScanner(),
+                _ => throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)")
+            };
         }
     }
 }
