@@ -2,7 +2,8 @@
 using System.IO;
 using System.Net;
 using System.Text;
-#if NETCOREAPP3_1
+using System.Threading.Tasks;
+#if !NET452
 using System.Text.Json;
 using System.Text.Json.Serialization;
 #else
@@ -12,7 +13,7 @@ using JsonPropertyNameAttribute = Newtonsoft.Json.JsonPropertyAttribute;
 
 namespace Inedo.DependencyScan
 {
-    public sealed class ProGetClient
+    internal sealed class ProGetClient
     {
         public ProGetClient(string baseUrl)
         {
@@ -21,7 +22,7 @@ namespace Inedo.DependencyScan
 
         public string BaseUrl { get; }
 
-        public void RecordPackageDependency(Package package, string feed, PackageConsumer consumer, string apiKey)
+        public async Task RecordPackageDependencyAsync(DependencyPackage package, string feed, PackageConsumer consumer, string apiKey)
         {
             var request = WebRequest.CreateHttp(this.BaseUrl + "/api/dependencies/dependents");
             request.Method = "POST";
@@ -29,16 +30,14 @@ namespace Inedo.DependencyScan
             if (!string.IsNullOrWhiteSpace(apiKey))
                 request.Headers.Add("X-ApiKey", apiKey);
 
-            using (var requestStream = request.GetRequestStream())
+            using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
-#if NETCOREAPP3_1
-                using (var writer = new Utf8JsonWriter(requestStream))
+#if !NET452
+                using var writer = new Utf8JsonWriter(requestStream);
+                JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer), new JsonSerializerOptions
                 {
-                    JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer), new JsonSerializerOptions
-                    {
-                        IgnoreNullValues = true
-                    });
-                }
+                    IgnoreNullValues = true
+                });
 #else
                 using (var writer = new StreamWriter(requestStream, Encoding.UTF8))
                 {
@@ -52,7 +51,7 @@ namespace Inedo.DependencyScan
 
             try
             {
-                using var response = request.GetResponse();
+                using var response = await request.GetResponseAsync().ConfigureAwait(false);
             }
             catch (WebException ex) when (ex.Response is HttpWebResponse response)
             {
@@ -60,18 +59,18 @@ namespace Inedo.DependencyScan
                 var message = new char[8192];
                 int length = reader.ReadBlock(message, 0, message.Length);
                 if (length > 0)
-                    throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}");
+                    throw new InvalidOperationException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}") { Data = { ["message"] = true } };
                 else
-                    throw new PgScanException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}");
+                    throw new InvalidOperationException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}") { Data = { ["message"] = true } };
             }
         }
 
         private sealed class DependentPackage
         {
-            private readonly Package p;
+            private readonly DependencyPackage p;
             private readonly PackageConsumer c;
 
-            public DependentPackage(Package p, string feed, PackageConsumer consumer)
+            public DependentPackage(DependencyPackage p, string feed, PackageConsumer consumer)
             {
                 this.p = p;
                 this.c = consumer;

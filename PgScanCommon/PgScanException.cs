@@ -2,7 +2,7 @@
 
 namespace Inedo.DependencyScan
 {
-    public sealed class PgScanException : Exception
+    internal sealed class PgScanException : Exception
     {
         public PgScanException(int exitCode, string message)
             : base(message)

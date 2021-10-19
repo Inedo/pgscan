@@ -1,36 +1,48 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
     public static class Program
     {
-        public static int Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
+#if NET452
+            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
+#endif
+
             try
             {
-                if (args.Length < 1)
+                try
                 {
-                    Usage();
-                    return 1;
+                    if (args.Length < 1)
+                    {
+                        Usage();
+                        return 1;
+                    }
+
+                    var argList = new ArgList(args);
+                    if (string.IsNullOrWhiteSpace(argList.Command))
+                        throw new PgScanException("Command is not specified.", true);
+
+                    switch (argList.Command.ToLowerInvariant())
+                    {
+                        case "report":
+                            Report(argList);
+                            break;
+
+                        case "publish":
+                            await Publish(argList);
+                            break;
+
+                        default:
+                            throw new PgScanException($"Invalid command: {argList.Command}", true);
+                    }
                 }
-
-                var argList = new ArgList(args);
-                if (string.IsNullOrWhiteSpace(argList.Command))
-                    throw new PgScanException("Command is not specified.", true);
-
-                switch (argList.Command.ToLowerInvariant())
+                catch (Exception ex) when (ex is not PgScanException && ex.Data.Contains("message"))
                 {
-                    case "report":
-                        Report(argList);
-                        break;
-
-                    case "publish":
-                        Publish(argList);
-                        break;
-
-                    default:
-                        throw new PgScanException($"Invalid command: {argList.Command}", true);
+                    throw new PgScanException(ex.Message);
                 }
             }
             catch (PgScanException ex)
@@ -56,8 +68,10 @@ namespace Inedo.DependencyScan
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
 
-            var scanner = DependencyScanner.GetScanner(typeName);
-            scanner.SourcePath = inputFileName;
+            if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
+                throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
+
+            var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = scanner.ResolveDependencies();
             if (projects.Count > 0)
             {
@@ -76,7 +90,7 @@ namespace Inedo.DependencyScan
             }
         }
 
-        private static void Publish(ArgList args)
+        private static async Task Publish(ArgList args)
         {
             var inputFileName = args.GetRequiredNamed("input");
 
@@ -84,6 +98,9 @@ namespace Inedo.DependencyScan
             typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
+
+            if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
+                throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
             var packageFeed = args.GetRequiredNamed("package-feed");
             var progetUrl = args.GetRequiredNamed("proget-url");
@@ -102,19 +119,15 @@ namespace Inedo.DependencyScan
             else
                 consumerFeed = consumerSource;
 
-            var client = new ProGetClient(progetUrl);
-
-            var scanner = DependencyScanner.GetScanner(typeName);
-            scanner.SourcePath = inputFileName;
+            var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = scanner.ResolveDependencies();
             foreach (var project in projects)
             {
                 foreach (var package in project.Dependencies)
                 {
                     Console.WriteLine($"Publishing consumer data for {package}...");
-
-                    client.RecordPackageDependency(
-                        package,
+                    await package.PublishDependencyAsync(
+                        progetUrl,
                         packageFeed,
                         new PackageConsumer
                         {

@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net5.0</TargetFramework>
+		<RootNamespace>Inedo.DependencyScan</RootNamespace>
+		<LangVersion>latest</LangVersion>
+		<Authors>Inedo</Authors>
+		<Company>Inedo</Company>
+		<Product>ProGet</Product>
+		<Description>Scans for NuGet, npm, or PyPI dependencies and optionally publishes them to a ProGet instance.</Description>
+		<Copyright>Copyright © Inedo 2021</Copyright>
+		<PackAsTool>true</PackAsTool>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<ToolCommandName>pgscan</ToolCommandName>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageTags>inedo proget dependencies</PackageTags>
+		<PackageProjectUrl>https://github.com/Inedo/pgscan</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Inedo/pgscan.git</RepositoryUrl>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Inedo.DependencyScan\Inedo.DependencyScan.csproj" />
+	</ItemGroup>
+	<Import Project="..\PgScanCommon\PgScanCommon.projitems" Label="Shared" />
+</Project>

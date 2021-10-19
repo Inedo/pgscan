@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-#if NETCOREAPP3_1
+#if !NET452
 using System.Text.Json;
 #else
 using Newtonsoft.Json;
@@ -9,10 +9,10 @@ using Newtonsoft.Json.Linq;
 
 namespace Inedo.DependencyScan
 {
-    public sealed class NpmDependencyScanner : DependencyScanner
+    internal sealed class NpmDependencyScanner : DependencyScanner
     {
-#if NETCOREAPP3_1
-        public override IReadOnlyCollection<Project> ResolveDependencies()
+#if !NET452
+        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
         {
             var packageLockPath = Path.Combine(Path.GetDirectoryName(this.SourcePath), "package-lock.json");
 
@@ -24,10 +24,10 @@ namespace Inedo.DependencyScan
             }
 
             var projectName = doc.RootElement.GetProperty("name").GetString();
-            return new[] { new Project(projectName, ReadDependencies(doc)) };
+            return new[] { new ScannedProject(projectName, ReadDependencies(doc)) };
         }
 
-        private static IEnumerable<Package> ReadDependencies(JsonDocument doc)
+        private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
         {
             if (!doc.RootElement.TryGetProperty("dependencies", out var dependencies))
                 yield break;
@@ -35,11 +35,11 @@ namespace Inedo.DependencyScan
             foreach (var d in dependencies.EnumerateObject())
             {
                 var version = d.Value.GetProperty("version").GetString();
-                yield return new Package { Name = d.Name, Version = version };
+                yield return new DependencyPackage { Name = d.Name, Version = version };
             }
         }
 #else
-        public override IReadOnlyCollection<Project> ResolveDependencies()
+        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
         {
             var packageLockPath = Path.Combine(Path.GetDirectoryName(this.SourcePath), "package-lock.json");
 
@@ -51,10 +51,10 @@ namespace Inedo.DependencyScan
             }
 
             var projectName = (string)doc.Property("name");
-            return new[] { new Project(projectName, ReadDependencies(doc)) };
+            return new[] { new ScannedProject(projectName, ReadDependencies(doc)) };
         }
 
-        private static IEnumerable<Package> ReadDependencies(JObject doc)
+        private static IEnumerable<DependencyPackage> ReadDependencies(JObject doc)
         {
             if (!(doc["dependencies"] is JObject dependencies))
                 yield break;
@@ -62,7 +62,7 @@ namespace Inedo.DependencyScan
             foreach (var d in dependencies.Properties())
             {
                 var version = (string)((JObject)d.Value).Property("version");
-                yield return new Package { Name = d.Name, Version = version };
+                yield return new DependencyPackage { Name = d.Name, Version = version };
             }
         }
 #endif

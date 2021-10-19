@@ -5,7 +5,18 @@ VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pgscan", "pgscan\pgscan.csproj", "{0C293E2B-7010-4019-9CFD-A08D7143FDD0}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Inedo.DependencyScan", "Inedo.DependencyScan\Inedo.DependencyScan.csproj", "{9DC09260-A37C-4617-9669-E2E4296F501A}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PgScanCommon", "PgScanCommon\PgScanCommon.shproj", "{BD0D05E8-1890-450D-9A23-BF0EC57A4D8A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inedo.DependencyScanTool", "pgscanTool\Inedo.DependencyScanTool.csproj", "{58541EF2-EA70-48CA-9B01-6BFD438FA27E}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		PgScanCommon\PgScanCommon.projitems*{0c293e2b-7010-4019-9cfd-a08d7143fdd0}*SharedItemsImports = 5
+		PgScanCommon\PgScanCommon.projitems*{58541ef2-ea70-48ca-9b01-6bfd438fa27e}*SharedItemsImports = 5
+		PgScanCommon\PgScanCommon.projitems*{bd0d05e8-1890-450d-9a23-bf0ec57a4d8a}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -15,6 +26,14 @@ Global
 		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0C293E2B-7010-4019-9CFD-A08D7143FDD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DC09260-A37C-4617-9669-E2E4296F501A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DC09260-A37C-4617-9669-E2E4296F501A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DC09260-A37C-4617-9669-E2E4296F501A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DC09260-A37C-4617-9669-E2E4296F501A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58541EF2-EA70-48CA-9B01-6BFD438FA27E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58541EF2-EA70-48CA-9B01-6BFD438FA27E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58541EF2-EA70-48CA-9B01-6BFD438FA27E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58541EF2-EA70-48CA-9B01-6BFD438FA27E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

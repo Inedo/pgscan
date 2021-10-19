@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-#if NETCOREAPP3_1
+#if !NET452
 using System.Text.Json;
 #else
 using Newtonsoft.Json;
@@ -13,22 +13,22 @@ using Newtonsoft.Json.Linq;
 
 namespace Inedo.DependencyScan
 {
-    public sealed class NuGetDependencyScanner : DependencyScanner
+    internal sealed class NuGetDependencyScanner : DependencyScanner
     {
-        private static readonly Regex SolutionProjectRegex = new Regex(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
+        private static readonly Regex SolutionProjectRegex = new(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
 
-        public override IReadOnlyCollection<Project> ResolveDependencies()
+        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
-                var projects = new List<Project>();
+                var projects = new List<ScannedProject>();
 
                 var solutionRoot = Path.GetDirectoryName(this.SourcePath);
 
                 foreach (var p in ReadProjectsFromSolution(this.SourcePath))
                 {
                     var projectPath = Path.Combine(solutionRoot, p);
-                    projects.Add(new Project(Path.GetFileNameWithoutExtension(p), ReadProjectDependencies(projectPath)));
+                    projects.Add(new ScannedProject(Path.GetFileNameWithoutExtension(p), ReadProjectDependencies(projectPath)));
                 }
 
                 return projects;
@@ -37,7 +37,7 @@ namespace Inedo.DependencyScan
             {
                 return new[]
                 {
-                    new Project(Path.GetFileNameWithoutExtension(this.SourcePath), ReadProjectDependencies(this.SourcePath))
+                    new ScannedProject(Path.GetFileNameWithoutExtension(this.SourcePath), ReadProjectDependencies(this.SourcePath))
                 };
             }
         }
@@ -52,7 +52,7 @@ namespace Inedo.DependencyScan
             }
         }
 
-        private static IEnumerable<Package> ReadProjectDependencies(string projectPath)
+        private static IEnumerable<DependencyPackage> ReadProjectDependencies(string projectPath)
         {
             var projectDir = Path.GetDirectoryName(projectPath);
             var packagesConfigPath = Path.Combine(projectDir, "packages.config");
@@ -63,10 +63,10 @@ namespace Inedo.DependencyScan
             if (File.Exists(assetsPath))
                 return ReadProjectAssets(assetsPath);
 
-            return Enumerable.Empty<Package>();
+            return Enumerable.Empty<DependencyPackage>();
         }
 
-        private static IEnumerable<Package> ReadPackagesConfig(string packagesConfigPath)
+        private static IEnumerable<DependencyPackage> ReadPackagesConfig(string packagesConfigPath)
         {
             var xdoc = XDocument.Load(packagesConfigPath);
             var packages = xdoc.Element("packages")?.Elements("package");
@@ -75,7 +75,7 @@ namespace Inedo.DependencyScan
 
             foreach (var p in packages)
             {
-                yield return new Package
+                yield return new DependencyPackage
                 {
                     Name = (string)p.Attribute("id"),
                     Version = (string)p.Attribute("version")
@@ -83,8 +83,8 @@ namespace Inedo.DependencyScan
             }
         }
 
-#if NETCOREAPP3_1
-        private static IEnumerable<Package> ReadProjectAssets(string projectAssetsPath)
+#if !NET452
+        private static IEnumerable<DependencyPackage> ReadProjectAssets(string projectAssetsPath)
         {
             JsonDocument jdoc;
             using (var stream = File.OpenRead(projectAssetsPath))
@@ -101,7 +101,7 @@ namespace Inedo.DependencyScan
                     {
                         var parts = library.Name.Split(new[] { '/' }, 2);
 
-                        yield return new Package
+                        yield return new DependencyPackage
                         {
                             Name = parts[0],
                             Version = parts[1]
@@ -111,7 +111,7 @@ namespace Inedo.DependencyScan
             }
         }
 #else
-        private static IEnumerable<Package> ReadProjectAssets(string projectAssetsPath)
+        private static IEnumerable<DependencyPackage> ReadProjectAssets(string projectAssetsPath)
         {
             JObject jdoc;
             using (var reader = new JsonTextReader(File.OpenText(projectAssetsPath)))
@@ -127,7 +127,7 @@ namespace Inedo.DependencyScan
                     {
                         var parts = library.Name.Split(new[] { '/' }, 2);
 
-                        yield return new Package
+                        yield return new DependencyPackage
                         {
                             Name = parts[0],
                             Version = parts[1]
