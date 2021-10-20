@@ -14,6 +14,8 @@ namespace Inedo.DependencyScan
 {
     internal sealed class NpmDependencyScanner : DependencyScanner
     {
+        public override DependencyScannerType Type => DependencyScannerType.Npm;
+
 #if !NET452
         public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {

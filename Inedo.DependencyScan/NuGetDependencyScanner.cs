@@ -20,6 +20,8 @@ namespace Inedo.DependencyScan
     {
         private static readonly Regex SolutionProjectRegex = new(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
 
+        public override DependencyScannerType Type => DependencyScannerType.NuGet;
+
         public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))

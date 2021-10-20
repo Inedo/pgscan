@@ -40,6 +40,10 @@ namespace Inedo.DependencyScan
             private init;
 #endif
         }
+        /// <summary>
+        /// Gets the type of scanner.
+        /// </summary>
+        public abstract DependencyScannerType Type { get; }
 
         /// <summary>
         /// Returns the dependencies used by each project in the specified <see cref="SourcePath"/>.
@@ -55,9 +59,15 @@ namespace Inedo.DependencyScan
         /// <param name="type">Type of project to scan for.</param>
         /// <param name="fileSystem">Abstract file system used to scan for dependencies. If not specified, the default system file I/O is used.</param>
         /// <returns><see cref="DependencyScanner"/> for the specified path.</returns>
-        public static DependencyScanner GetScanner(string sourcePath, DependencyScannerType type, ISourceFileSystem fileSystem = null)
+        public static DependencyScanner GetScanner(string sourcePath, DependencyScannerType type = DependencyScannerType.Auto, ISourceFileSystem fileSystem = null)
         {
             var fs = fileSystem ?? SourceFileSystem.Default;
+            if (type == DependencyScannerType.Auto)
+            {
+                type = GetImplicitType(sourcePath);
+                if (type == DependencyScannerType.Auto)
+                    throw new ArgumentException("Could not automatically determine project type.") { Data = { ["message"] = true } };
+            }
 
             return type switch
             {
@@ -86,5 +96,14 @@ namespace Inedo.DependencyScan
         }
 
         private static TScanner Create<TScanner>(string sourcePath, ISourceFileSystem fileSystem) where TScanner : DependencyScanner, new() => new() { SourcePath = sourcePath, FileSystem = fileSystem };
+        private static DependencyScannerType GetImplicitType(string fileName)
+        {
+            return Path.GetExtension(fileName).ToLowerInvariant() switch
+            {
+                ".sln" or ".csproj" => DependencyScannerType.NuGet,
+                ".json" => DependencyScannerType.Npm,
+                _ => Path.GetFileName(fileName).Equals("requirements.txt", StringComparison.OrdinalIgnoreCase) ? DependencyScannerType.PyPI : DependencyScannerType.Auto
+            };
+        }
     }
 }

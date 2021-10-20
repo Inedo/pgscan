@@ -6,6 +6,10 @@
     public enum DependencyScannerType
     {
         /// <summary>
+        /// Automatically determine the type based on the file name.
+        /// </summary>
+        Auto,
+        /// <summary>
         /// NuGet.
         /// </summary>
         NuGet,
