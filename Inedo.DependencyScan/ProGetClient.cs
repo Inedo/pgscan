@@ -22,7 +22,7 @@ namespace Inedo.DependencyScan
 
         public string BaseUrl { get; }
 
-        public async Task RecordPackageDependencyAsync(DependencyPackage package, string feed, PackageConsumer consumer, string apiKey)
+        public async Task RecordPackageDependencyAsync(DependencyPackage package, string feed, PackageConsumer consumer, string apiKey, string comments = null)
         {
             var request = WebRequest.CreateHttp(this.BaseUrl + "/api/dependencies/dependents");
             request.Method = "POST";
@@ -34,7 +34,7 @@ namespace Inedo.DependencyScan
             {
 #if !NET452
                 using var writer = new Utf8JsonWriter(requestStream);
-                JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer), new JsonSerializerOptions
+                JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer, comments), new JsonSerializerOptions
                 {
                     IgnoreNullValues = true
                 });
@@ -44,7 +44,7 @@ namespace Inedo.DependencyScan
                     new JsonSerializer
                     {
                         NullValueHandling = NullValueHandling.Ignore
-                    }.Serialize(writer, new DependentPackage(package, feed, consumer));
+                    }.Serialize(writer, new DependentPackage(package, feed, consumer, comments));
                 }
 #endif
             }
@@ -70,11 +70,12 @@ namespace Inedo.DependencyScan
             private readonly DependencyPackage p;
             private readonly PackageConsumer c;
 
-            public DependentPackage(DependencyPackage p, string feed, PackageConsumer consumer)
+            public DependentPackage(DependencyPackage p, string feed, PackageConsumer consumer, string comments)
             {
                 this.p = p;
                 this.c = consumer;
                 this.FeedName = feed;
+                this.Comments = comments;
             }
 
             [JsonPropertyName("feed")]
@@ -95,6 +96,8 @@ namespace Inedo.DependencyScan
             public string DependentPackageFeed => this.c.Feed;
             [JsonPropertyName("dependentUrl")]
             public object DependentPackageUrl => this.c.Url;
+            [JsonPropertyName("comments")]
+            public string Comments { get; }
         }
     }
 }
