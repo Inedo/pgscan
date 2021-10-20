@@ -1,8 +1,11 @@
 ﻿using System.Collections.Generic;
-using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 #if !NET452
 using System.Text.Json;
 #else
+using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 #endif
@@ -12,13 +15,13 @@ namespace Inedo.DependencyScan
     internal sealed class NpmDependencyScanner : DependencyScanner
     {
 #if !NET452
-        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
-            var packageLockPath = Path.Combine(Path.GetDirectoryName(this.SourcePath), "package-lock.json");
+            var packageLockPath = this.FileSystem.Combine(this.FileSystem.GetDirectoryName(this.SourcePath), "package-lock.json");
 
             JsonDocument doc;
 
-            using (var stream = File.OpenRead(packageLockPath))
+            using (var stream = await this.FileSystem.OpenReadAsync(packageLockPath, cancellationToken).ConfigureAwait(false))
             {
                 doc = JsonDocument.Parse(stream);
             }
@@ -39,13 +42,13 @@ namespace Inedo.DependencyScan
             }
         }
 #else
-        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
-            var packageLockPath = Path.Combine(Path.GetDirectoryName(this.SourcePath), "package-lock.json");
+            var packageLockPath = this.FileSystem.Combine(this.FileSystem.GetDirectoryName(this.SourcePath), "package-lock.json");
 
             JObject doc;
 
-            using (var reader = new JsonTextReader(File.OpenText(packageLockPath)))
+            using (var reader = new JsonTextReader(new StreamReader(await this.FileSystem.OpenReadAsync(packageLockPath, cancellationToken).ConfigureAwait(false), Encoding.UTF8)))
             {
                 doc = JObject.Load(reader);
             }

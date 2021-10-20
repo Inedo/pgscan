@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using System.Threading.Tasks;
+using System.Threading;
 #if !NET452
 using System.Text.Json;
 #else
+using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 #endif
@@ -17,18 +20,18 @@ namespace Inedo.DependencyScan
     {
         private static readonly Regex SolutionProjectRegex = new(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
 
-        public override IReadOnlyCollection<ScannedProject> ResolveDependencies()
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
                 var projects = new List<ScannedProject>();
 
-                var solutionRoot = Path.GetDirectoryName(this.SourcePath);
+                var solutionRoot = this.FileSystem.GetDirectoryName(this.SourcePath);
 
-                foreach (var p in ReadProjectsFromSolution(this.SourcePath))
+                foreach (var p in await ReadProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
                 {
-                    var projectPath = Path.Combine(solutionRoot, p);
-                    projects.Add(new ScannedProject(Path.GetFileNameWithoutExtension(p), ReadProjectDependencies(projectPath)));
+                    var projectPath = this.FileSystem.Combine(solutionRoot, p);
+                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), await ReadProjectDependenciesAsync(projectPath, cancellationToken).ConfigureAwait(false)));
                 }
 
                 return projects;
@@ -37,101 +40,114 @@ namespace Inedo.DependencyScan
             {
                 return new[]
                 {
-                    new ScannedProject(Path.GetFileNameWithoutExtension(this.SourcePath), ReadProjectDependencies(this.SourcePath))
+                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
                 };
             }
         }
 
-        private static IEnumerable<string> ReadProjectsFromSolution(string solutionPath)
+        private async Task<IEnumerable<string>> ReadProjectsFromSolutionAsync(string solutionPath, CancellationToken cancellationToken)
         {
-            foreach (var line in File.ReadLines(solutionPath))
-            {
-                var m = SolutionProjectRegex.Match(line);
-                if (m.Success)
-                    yield return m.Groups[1].Value;
-            }
+            return (await this.ReadLinesAsync(solutionPath, cancellationToken).ConfigureAwait(false))
+                .Select(l => SolutionProjectRegex.Match(l))
+                .Where(m => m.Success)
+                .Select(m => m.Groups[1].Value);
         }
 
-        private static IEnumerable<DependencyPackage> ReadProjectDependencies(string projectPath)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectDependenciesAsync(string projectPath, CancellationToken cancellationToken)
         {
-            var projectDir = Path.GetDirectoryName(projectPath);
-            var packagesConfigPath = Path.Combine(projectDir, "packages.config");
-            if (File.Exists(packagesConfigPath))
-                return ReadPackagesConfig(packagesConfigPath);
+            var projectDir = this.FileSystem.GetDirectoryName(projectPath);
+            var packagesConfigPath = this.FileSystem.Combine(projectDir, "packages.config");
+            if (await this.FileSystem.FileExistsAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false))
+                return await ReadPackagesConfigAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false);
 
-            var assetsPath = Path.Combine(projectDir, "obj", "project.assets.json");
-            if (File.Exists(assetsPath))
-                return ReadProjectAssets(assetsPath);
+            var assetsPath = this.FileSystem.Combine(this.FileSystem.Combine(projectDir, "obj"), "project.assets.json");
+            if (await this.FileSystem.FileExistsAsync(assetsPath, cancellationToken).ConfigureAwait(false))
+                return await ReadProjectAssetsAsync(assetsPath, cancellationToken).ConfigureAwait(false);
 
             return Enumerable.Empty<DependencyPackage>();
         }
 
-        private static IEnumerable<DependencyPackage> ReadPackagesConfig(string packagesConfigPath)
+        private async Task<IEnumerable<DependencyPackage>> ReadPackagesConfigAsync(string packagesConfigPath, CancellationToken cancellationToken)
         {
-            var xdoc = XDocument.Load(packagesConfigPath);
-            var packages = xdoc.Element("packages")?.Elements("package");
-            if (packages == null)
-                yield break;
+            var xdoc = XDocument.Load(await this.FileSystem.OpenReadAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false));
+            return enumeratePackages(xdoc);
 
-            foreach (var p in packages)
+            static IEnumerable<DependencyPackage> enumeratePackages(XDocument xdoc)
             {
-                yield return new DependencyPackage
+                var packages = xdoc.Element("packages")?.Elements("package");
+                if (packages == null)
+                    yield break;
+
+                foreach (var p in packages)
                 {
-                    Name = (string)p.Attribute("id"),
-                    Version = (string)p.Attribute("version")
-                };
+                    yield return new DependencyPackage
+                    {
+                        Name = (string)p.Attribute("id"),
+                        Version = (string)p.Attribute("version")
+                    };
+                }
             }
         }
 
 #if !NET452
-        private static IEnumerable<DependencyPackage> ReadProjectAssets(string projectAssetsPath)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, CancellationToken cancellationToken)
         {
             JsonDocument jdoc;
-            using (var stream = File.OpenRead(projectAssetsPath))
+            using (var stream = await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false))
             {
                 jdoc = JsonDocument.Parse(stream);
             }
 
-            var libraries = jdoc.RootElement.GetProperty("libraries");
-            if (libraries.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var library in libraries.EnumerateObject())
-                {
-                    if (library.Value.GetProperty("type").ValueEquals("package"))
-                    {
-                        var parts = library.Name.Split(new[] { '/' }, 2);
+            return enumeratePackages(jdoc);
 
-                        yield return new DependencyPackage
+            static IEnumerable<DependencyPackage> enumeratePackages(JsonDocument jdoc)
+            {
+                var libraries = jdoc.RootElement.GetProperty("libraries");
+                if (libraries.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var library in libraries.EnumerateObject())
+                    {
+                        if (library.Value.GetProperty("type").ValueEquals("package"))
                         {
-                            Name = parts[0],
-                            Version = parts[1]
-                        };
+                            var parts = library.Name.Split(new[] { '/' }, 2);
+
+                            yield return new DependencyPackage
+                            {
+                                Name = parts[0],
+                                Version = parts[1]
+                            };
+                        }
                     }
                 }
             }
         }
 #else
-        private static IEnumerable<DependencyPackage> ReadProjectAssets(string projectAssetsPath)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, CancellationToken cancellationToken)
         {
             JObject jdoc;
-            using (var reader = new JsonTextReader(File.OpenText(projectAssetsPath)))
+            using (var reader = new JsonTextReader(new StreamReader(await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false), Encoding.UTF8)))
             {
                 jdoc = JObject.Load(reader);
             }
 
-            if (jdoc["libraries"] is JObject libraries)
-            {
-                foreach (var library in libraries.Properties())
-                {
-                    if ((string)((JObject)library.Value).Property("type") == "package")
-                    {
-                        var parts = library.Name.Split(new[] { '/' }, 2);
+            return enumeratePackages(jdoc);
 
-                        yield return new DependencyPackage
+            static IEnumerable<DependencyPackage> enumeratePackages(JObject jdoc)
+            {
+                if (jdoc["libraries"] is JObject libraries)
+                {
+                    foreach (var library in libraries.Properties())
+                    {
+                        if ((string)((JObject)library.Value).Property("type") == "package")
                         {
-                            Name = parts[0],
-                            Version = parts[1]
-                        };
+                            var parts = library.Name.Split(new[] { '/' }, 2);
+    
+                            yield return new DependencyPackage
+                            {
+                                Name = parts[0],
+                                Version = parts[1]
+                            };
+                        }
                     }
                 }
             }

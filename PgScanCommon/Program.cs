@@ -29,7 +29,7 @@ namespace Inedo.DependencyScan
                     switch (argList.Command.ToLowerInvariant())
                     {
                         case "report":
-                            Report(argList);
+                            await Report(argList);
                             break;
 
                         case "publish":
@@ -58,7 +58,7 @@ namespace Inedo.DependencyScan
             return 0;
         }
 
-        private static void Report(ArgList args)
+        private static async Task Report(ArgList args)
         {
             if (!args.Named.TryGetValue("input", out var inputFileName))
                 throw new PgScanException("Missing required argument --input=<input file name>");
@@ -72,7 +72,7 @@ namespace Inedo.DependencyScan
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = scanner.ResolveDependencies();
+            var projects = await scanner.ResolveDependenciesAsync();
             if (projects.Count > 0)
             {
                 foreach (var p in projects)
@@ -120,7 +120,7 @@ namespace Inedo.DependencyScan
                 consumerFeed = consumerSource;
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = scanner.ResolveDependencies();
+            var projects = await scanner.ResolveDependenciesAsync();
             foreach (var project in projects)
             {
                 foreach (var package in project.Dependencies)

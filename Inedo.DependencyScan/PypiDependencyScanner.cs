@@ -1,20 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
     internal sealed class PypiDependencyScanner : DependencyScanner
     {
-        public override IReadOnlyCollection<ScannedProject> ResolveDependencies() => new[] { new ScannedProject("PyPiPackage", this.ReadDependencies()) };
-
-        private IEnumerable<DependencyPackage> ReadDependencies()
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
-            foreach (var line in File.ReadLines(this.SourcePath))
+            return new[] { new ScannedProject("PyPiPackage", await this.ReadDependenciesAsync(cancellationToken).ConfigureAwait(false)) };
+        }
+
+        private async Task<IEnumerable<DependencyPackage>> ReadDependenciesAsync(CancellationToken cancellationToken)
+        {
+            return enumeratePackages(await this.ReadLinesAsync(this.SourcePath, cancellationToken).ConfigureAwait(false));
+
+            static IEnumerable<DependencyPackage> enumeratePackages(IEnumerable<string> lines)
             {
-                var parts = line.Split(new[] { "==" }, 2, StringSplitOptions.None);
-                if (parts.Length == 2)
-                    yield return new DependencyPackage { Name = parts[0], Version = parts[1] };
+                foreach (var line in lines)
+                {
+                    var parts = line.Split(new[] { "==" }, 2, StringSplitOptions.None);
+                    if (parts.Length == 2)
+                        yield return new DependencyPackage { Name = parts[0], Version = parts[1] };
+                }
             }
         }
     }
