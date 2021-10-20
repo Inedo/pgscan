@@ -65,10 +65,11 @@ namespace Inedo.DependencyScan
         /// <param name="packageFeed">Name of the feed to publish to.</param>
         /// <param name="consumer">Package consumer information.</param>
         /// <param name="apiKey">ProGet API key.</param>
-        public Task PublishDependencyAsync(string progetUrl, string packageFeed, PackageConsumer consumer, string apiKey)
+        /// <param name="comments">Optional comments to submit.</param>
+        public Task PublishDependencyAsync(string progetUrl, string packageFeed, PackageConsumer consumer, string apiKey, string comments = null)
         {
             var client = new ProGetClient(progetUrl);
-            return client.RecordPackageDependencyAsync(this, packageFeed, consumer, apiKey);
+            return client.RecordPackageDependencyAsync(this, packageFeed, consumer, apiKey, comments);
         }
     }
 }
