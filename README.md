@@ -2,21 +2,40 @@
 
 [![Build status](https://buildmaster.inedo.com/api/ci-badges/image?API_Key=badges&$ApplicationId=78)](https://buildmaster.inedo.com/api/ci-badges/link?API_Key=badges&$ApplicationId=78)
 
-Dependency scanner for ProGet.
+This tool is used to gather actual dependencies used by a .net/npm/pypi project and publish them to a ProGet instance. It is available as a standalone tool
+for Windows/Linux, an [installable dotnet tool](https://docs.microsoft.com/en-us/dotnet/core/tools/global-tools), or a .net class library. Its functionality
+is also available in OtterScript directly using the `ProGet::Record-Dependencies` operation.
 
-This command-line tool is used to gather actual dependencies used by a .net/npm/pypi project and publish them to a ProGet instance.
+## Installation (standalone CLI)
 
-## Example OtterScript Usage
+Download the latest version from the Releases page.
 
-    # Build MyLibrary
-    DotNet::Build MyLibrary.csproj
-    (
-        Configuration: Release
-    );
 
-    # Publish dependencies of MyLibrary to the proget.local server
-    Exec
-    (
-        FileName: pgscan.exe
-        Arguments: publish --input=MyLibrary.csproj --package-feed=Libraries --proget-url=https://proget.local --consumer-package-source=Libraries --consumer-package-version=$ReleaseNumber
-    );
+## Installation (dotnet tool)
+
+Install the tool using dotnet. For example, to install the tool locally to the current tool manifest:
+
+```Batchfile
+dotnet tool install pgscan
+```
+
+
+## Usage (CLI/tool)
+
+Execute `pgscan` with the `publish` command. For example, to submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet's `Libraries` feed:
+
+```Batchfile
+pgscan publish --input=MyLibrary.csproj --package-feed=Libraries --proget-url=https://proget.local --consumer-package-source=Libraries --consumer-package-version=1.0.0
+```
+
+
+## Usage (OtterScript)
+
+Use the ProGet::Record-Dependencies operation:
+
+```
+ProGet::Record-Dependencies
+(
+
+);
+```
