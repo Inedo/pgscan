@@ -36,6 +36,9 @@ Use the ProGet::Record-Dependencies operation:
 ```
 ProGet::Record-Dependencies
 (
-
+    Project: MyProject.csproj,
+    Resource: LocalProGet,
+    Feed: Libraries,
+    ConsumerVersion: $ReleaseNumber
 );
 ```
