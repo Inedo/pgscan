@@ -10,8 +10,8 @@
 		<Description>Scans for NuGet, npm, or PyPI dependencies and optionally publishes them to a ProGet instance.</Description>
 		<Copyright>Copyright © Inedo 2021</Copyright>
 		<PackAsTool>true</PackAsTool>
+		<AssemblyName>pgscan</AssemblyName>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<ToolCommandName>pgscan</ToolCommandName>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageTags>inedo proget dependencies</PackageTags>
 		<PackageProjectUrl>https://github.com/Inedo/pgscan</PackageProjectUrl>

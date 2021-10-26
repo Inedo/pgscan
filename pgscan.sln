@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Inedo.DependencyScan", "Ine
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PgScanCommon", "PgScanCommon\PgScanCommon.shproj", "{BD0D05E8-1890-450D-9A23-BF0EC57A4D8A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inedo.DependencyScanTool", "pgscanTool\Inedo.DependencyScanTool.csproj", "{58541EF2-EA70-48CA-9B01-6BFD438FA27E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "pgscanTool", "pgscanTool\pgscanTool.csproj", "{58541EF2-EA70-48CA-9B01-6BFD438FA27E}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
