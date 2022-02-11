@@ -48,6 +48,30 @@ namespace Inedo.DependencyScan
 #endif
         }
 
+        /// <summary>Serves as a hash function (used in dictionaries and hash sets).</summary>
+        /// <returns>A hash code for the current object.</returns>
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
+        }
+
+        /// <summary>Determines whether the specified object is equal to the current object.</summary>
+        /// <param name="obj">The object to compare with the current object.</param>
+        /// <returns>
+        ///   <see langword="true" /> if the specified object  is equal to the current object; otherwise, <see langword="false" />.</returns>
+        public override bool Equals(object obj)
+        {
+            // check if other object is DependencyPackage and not null
+            var package = obj as DependencyPackage;
+            if (package == null)
+                return false;
+
+            // check Group, Name & Version for equality
+            return Group == package.Group
+                && Name == package.Name
+                && Version == package.Version;
+        }
+
         /// <summary>
         /// Returns a string representation of the package.
         /// </summary>

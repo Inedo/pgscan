@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -121,22 +122,61 @@ namespace Inedo.DependencyScan
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync();
-            foreach (var project in projects)
+
+
+            if (string.IsNullOrEmpty(consumerName))
             {
-                foreach (var package in project.Dependencies)
+                foreach (var project in projects)
                 {
-                    Console.WriteLine($"Publishing consumer data for {package}...");
+                    var consumer = new PackageConsumer
+                    {
+                        Name = project.Name,
+                        Version = consumerVersion,
+                        Group = consumerGroup,
+                        Feed = consumerFeed,
+                        Url = consumerUrl
+                    };
+
+                    foreach (var package in project.Dependencies)
+                    {
+                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name}...");
+                        await package.PublishDependencyAsync(
+                            progetUrl,
+                            packageFeed,
+                            consumer,
+                            apiKey
+                        );
+                    }
+                }
+            }
+            else
+            {
+                var consumer = new PackageConsumer
+                {
+                    Name = consumerName,
+                    Version = consumerVersion,
+                    Group = consumerGroup,
+                    Feed = consumerFeed,
+                    Url = consumerUrl
+                };
+
+                // aggregate packages usages so consumer infos won't be published mutiple times
+                var hashset = new HashSet<DependencyPackage>();
+                foreach (var project in projects)
+                {
+                    foreach (var package in project.Dependencies)
+                    {
+                        hashset.Add(package);
+                    }
+                }
+
+                foreach (var package in hashset)
+                {
+                    Console.WriteLine($"Publishing consumer data for {package} for {consumerName}...");
                     await package.PublishDependencyAsync(
                         progetUrl,
                         packageFeed,
-                        new PackageConsumer
-                        {
-                            Name = consumerName ?? project.Name,
-                            Version = consumerVersion,
-                            Group = consumerGroup,
-                            Feed = consumerFeed,
-                            Url = consumerUrl
-                        },
+                        consumer,
                         apiKey
                     );
                 }
