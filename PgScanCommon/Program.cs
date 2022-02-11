@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -105,11 +106,44 @@ namespace Inedo.DependencyScan
             var packageFeed = args.GetRequiredNamed("package-feed");
             var progetUrl = args.GetRequiredNamed("proget-url");
             var consumerSource = args.GetRequiredNamed("consumer-package-source");
-            var consumerVersion = args.GetRequiredNamed("consumer-package-version");
 
-            args.Named.TryGetValue("consumer-package-name", out var consumerName);
             args.Named.TryGetValue("consumer-package-group", out var consumerGroup);
             args.Named.TryGetValue("api-key", out var apiKey);
+
+            string consumerVersion = null;
+            string consumerName = null;
+
+            // try to get consumerName and consumerVersion from file (e.g. a build result like a DLL or EXE file)
+            if (args.Named.TryGetValue("consumer-package-file", out var consumerVersionFile) && File.Exists(consumerVersionFile))
+            {
+                try
+                {
+                    var vi = FileVersionInfo.GetVersionInfo(consumerVersionFile);
+                    consumerVersion = vi.FileVersion ?? vi.ProductVersion;
+                    consumerName = vi.ProductName;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+
+            }
+
+            if (consumerVersion == null)
+                consumerVersion = args.GetRequiredNamed("consumer-package-version");
+            else if (args.Named.TryGetValue("consumer-package-version", out var consumerPackageVersion))
+            {
+                // a provided consumer-package-version overrides a version extracted from a file
+                consumerVersion = consumerPackageVersion;
+            }
+
+            if (args.Named.TryGetValue("consumer-package-name", out var consumerPackageName))
+            {
+                // a provided consumer-package-name overrides a name extracted from a file
+                consumerName = consumerPackageName;
+            }
+
+
 
             string consumerFeed = null;
             string consumerUrl = null;
@@ -168,6 +202,7 @@ namespace Inedo.DependencyScan
             Console.WriteLine("  --consumer-package-name=<name>");
             Console.WriteLine("  --consumer-package-version=<version>");
             Console.WriteLine("  --consumer-package-group=<group>");
+            Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
             Console.WriteLine("  --api-key=<ProGet API key>");
             Console.WriteLine();
             Console.WriteLine("Commands:");
