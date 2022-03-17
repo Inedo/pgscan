@@ -27,7 +27,6 @@ namespace Inedo.DependencyScan
         public string BaseUrl { get; }
 
         public Task RecordPackageDependencyAsync(DependencyPackage package, string feed, PackageConsumer consumer, string apiKey, string comments = null) => this.RecordPackageDependencyInternalAsync(package, feed, consumer, apiKey, comments);
-
         public async Task RecordPackageDependenciesAsync(IEnumerable<DependencyPackage> packages, string feed, PackageConsumer consumer, string apiKey, string comments = null)
         {
             Version serverVersion = null;

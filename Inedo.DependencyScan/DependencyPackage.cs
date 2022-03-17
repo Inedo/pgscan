@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
@@ -46,6 +47,21 @@ namespace Inedo.DependencyScan
 #else
             internal init;
 #endif
+        }
+
+        /// <summary>
+        /// Publishes dependency information to a ProGet server.
+        /// </summary>
+        /// <param name="packages">Dependencies packages.</param>
+        /// <param name="progetUrl">ProGet server URL.</param>
+        /// <param name="packageFeed">Name of the feed to publish to.</param>
+        /// <param name="consumer">Package consumer information.</param>
+        /// <param name="apiKey">ProGet API key.</param>
+        /// <param name="comments">Optional comments to submit.</param>
+        public static Task PublishDependenciesAsync(IEnumerable<DependencyPackage> packages, string progetUrl, string packageFeed, PackageConsumer consumer, string apiKey, string comments = null)
+        {
+            var client = new ProGetClient(progetUrl);
+            return client.RecordPackageDependenciesAsync(packages, packageFeed, consumer, apiKey, comments);
         }
 
         /// <summary>Serves as a hash function (used in dictionaries and hash sets).</summary>
