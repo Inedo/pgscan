@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Inedo.DependencyScan
 {
@@ -80,7 +81,7 @@ namespace Inedo.DependencyScan
                 foreach (var p in projects)
                 {
                     Console.WriteLine(p.Name ?? "(project)");
-                    foreach (var d in p.Dependencies)
+                    foreach (var d in p.Dependencies.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                         Console.WriteLine($"  => {d.Name} {d.Version}");
 
                     Console.WriteLine();
@@ -171,7 +172,7 @@ namespace Inedo.DependencyScan
                         Url = consumerUrl
                     };
 
-                    foreach (var package in project.Dependencies)
+                    foreach (var package in project.Dependencies.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                     {
                         Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name}...");
                         await package.PublishDependencyAsync(
@@ -204,7 +205,7 @@ namespace Inedo.DependencyScan
                     }
                 }
 
-                foreach (var package in hashset)
+                foreach (var package in hashset.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                 {
                     Console.WriteLine($"Publishing consumer data for {package} for {consumerName}...");
                     await package.PublishDependencyAsync(
