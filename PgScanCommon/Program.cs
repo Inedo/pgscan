@@ -104,7 +104,17 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
-            var packageFeed = args.GetRequiredNamed("package-feed");
+            string[] packageFeeds;
+            if (args.Named.TryGetValue("package-feeds", out var packageFeedsCommaSeparated))
+            {
+                packageFeeds = packageFeedsCommaSeparated.Split(',');
+            }
+            else
+            {
+                var packageFeed = args.GetRequiredNamed("package-feed");
+                packageFeeds = new[] { packageFeed };
+            }
+
             var progetUrl = args.GetRequiredNamed("proget-url");
             var consumerSource = args.GetRequiredNamed("consumer-package-source");
 
@@ -173,8 +183,9 @@ namespace Inedo.DependencyScan
 
                     foreach (var package in project.Dependencies)
                     {
-                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name}...");
-                        await package.PublishDependencyAsync(
+                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name} {consumerVersion}...");
+                        foreach (var packageFeed in packageFeeds)
+                            await package.PublishDependencyAsync(
                             progetUrl,
                             packageFeed,
                             consumer,
@@ -206,13 +217,14 @@ namespace Inedo.DependencyScan
 
                 foreach (var package in hashset)
                 {
-                    Console.WriteLine($"Publishing consumer data for {package} for {consumerName}...");
-                    await package.PublishDependencyAsync(
-                        progetUrl,
-                        packageFeed,
-                        consumer,
-                        apiKey
-                    );
+                    Console.WriteLine($"Publishing consumer data for {package} consumed by {consumerName} {consumerVersion}...");
+                    foreach (var packageFeed in packageFeeds)
+                        await package.PublishDependencyAsync(
+                             progetUrl,
+                             packageFeed,
+                             consumer,
+                             apiKey
+                         );
                 }
             }
 
@@ -237,6 +249,7 @@ namespace Inedo.DependencyScan
             Console.WriteLine("  --type=<nuget|npm|pypi>");
             Console.WriteLine("  --input=<source file name>");
             Console.WriteLine("  --package-feed=<ProGet feed name>");
+            Console.WriteLine("  --package-feeds=<comma-separated list of ProGet feed names>");
             Console.WriteLine("  --proget-url=<ProGet base URL>");
             Console.WriteLine("  --consumer-package-source=<feed name or URL>");
             Console.WriteLine("  --consumer-package-name=<name>");
