@@ -9,7 +9,7 @@ namespace Inedo.DependencyScan
     {
         public override DependencyScannerType Type => DependencyScannerType.PyPI;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default)
         {
             return new[] { new ScannedProject("PyPiPackage", await this.ReadDependenciesAsync(cancellationToken).ConfigureAwait(false)) };
         }
