@@ -22,7 +22,7 @@ namespace Inedo.DependencyScan
 
         public override DependencyScannerType Type => DependencyScannerType.NuGet;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences, CancellationToken cancellationToken = default)
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {

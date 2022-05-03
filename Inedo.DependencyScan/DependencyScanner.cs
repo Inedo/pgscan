@@ -51,7 +51,7 @@ namespace Inedo.DependencyScan
         /// <param name="considerProjectReferences">Determines if project references are considered as package references or not (only relevant for NuGetDependencyScanner).</param>
         /// <param name="cancellationToken">Cancellation token for asynchronous operation.</param>
         /// <returns>Dependencies used by each project.</returns>
-        public abstract Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences, CancellationToken cancellationToken = default);
+        public abstract Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns a <see cref="DependencyScanner"/> for the specified path.
