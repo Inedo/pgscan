@@ -73,8 +73,12 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
+            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
+            if (!string.IsNullOrEmpty(considerProjectReferences))
+                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
+
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync();
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences is null ? false : true);
             if (projects.Count > 0)
             {
                 foreach (var p in projects)
@@ -144,8 +148,6 @@ namespace Inedo.DependencyScan
                 consumerName = consumerPackageName;
             }
 
-
-
             string consumerFeed = null;
             string consumerUrl = null;
 
@@ -154,8 +156,12 @@ namespace Inedo.DependencyScan
             else
                 consumerFeed = consumerSource;
 
+            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
+            if (!string.IsNullOrEmpty(considerProjectReferences))
+                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
+
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync();
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences == null ? false : true);
 
 
             if (string.IsNullOrEmpty(consumerName))
@@ -244,6 +250,7 @@ namespace Inedo.DependencyScan
             Console.WriteLine("  --consumer-package-group=<group>");
             Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
             Console.WriteLine("  --api-key=<ProGet API key>");
+            Console.WriteLine("  --consider-project-references (treat project references as package references)");
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  report\tDisplay dependency data");

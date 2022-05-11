@@ -22,7 +22,7 @@ namespace Inedo.DependencyScan
 
         public override DependencyScannerType Type => DependencyScannerType.NuGet;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
@@ -33,7 +33,7 @@ namespace Inedo.DependencyScan
                 foreach (var p in await ReadProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
                 {
                     var projectPath = this.FileSystem.Combine(solutionRoot, p);
-                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), await ReadProjectDependenciesAsync(projectPath, cancellationToken).ConfigureAwait(false)));
+                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), await ReadProjectDependenciesAsync(projectPath, considerProjectReferences, cancellationToken).ConfigureAwait(false)));
                 }
 
                 return projects;
@@ -42,7 +42,7 @@ namespace Inedo.DependencyScan
             {
                 return new[]
                 {
-                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
+                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ConfigureAwait(false))
                 };
             }
         }
@@ -55,7 +55,7 @@ namespace Inedo.DependencyScan
                 .Select(m => m.Groups[1].Value);
         }
 
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectDependenciesAsync(string projectPath, CancellationToken cancellationToken)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectDependenciesAsync(string projectPath, bool considerProjectReferences, CancellationToken cancellationToken)
         {
             var projectDir = this.FileSystem.GetDirectoryName(projectPath);
             var packagesConfigPath = this.FileSystem.Combine(projectDir, "packages.config");
@@ -64,7 +64,7 @@ namespace Inedo.DependencyScan
 
             var assetsPath = this.FileSystem.Combine(this.FileSystem.Combine(projectDir, "obj"), "project.assets.json");
             if (await this.FileSystem.FileExistsAsync(assetsPath, cancellationToken).ConfigureAwait(false))
-                return await ReadProjectAssetsAsync(assetsPath, cancellationToken).ConfigureAwait(false);
+                return await ReadProjectAssetsAsync(assetsPath, considerProjectReferences, cancellationToken).ConfigureAwait(false);
 
             return Enumerable.Empty<DependencyPackage>();
         }
@@ -92,7 +92,7 @@ namespace Inedo.DependencyScan
         }
 
 #if !NET452
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, CancellationToken cancellationToken)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, bool considerProjectReferences, CancellationToken cancellationToken)
         {
             JsonDocument jdoc;
             using (var stream = await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false))
@@ -100,16 +100,16 @@ namespace Inedo.DependencyScan
                 jdoc = JsonDocument.Parse(stream);
             }
 
-            return enumeratePackages(jdoc);
+            return enumeratePackages(jdoc, considerProjectReferences);
 
-            static IEnumerable<DependencyPackage> enumeratePackages(JsonDocument jdoc)
+            static IEnumerable<DependencyPackage> enumeratePackages(JsonDocument jdoc, bool considerProjectReferences)
             {
                 var libraries = jdoc.RootElement.GetProperty("libraries");
                 if (libraries.ValueKind == JsonValueKind.Object)
                 {
                     foreach (var library in libraries.EnumerateObject())
                     {
-                        if (library.Value.GetProperty("type").ValueEquals("package"))
+                        if (library.Value.GetProperty("type").ValueEquals("package") || (library.Value.GetProperty("type").ValueEquals("project") && considerProjectReferences))
                         {
                             var parts = library.Name.Split(new[] { '/' }, 2);
 
@@ -124,7 +124,7 @@ namespace Inedo.DependencyScan
             }
         }
 #else
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, CancellationToken cancellationToken)
+        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, bool considerProjectReferences, CancellationToken cancellationToken)
         {
             JObject jdoc;
             using (var reader = new JsonTextReader(new StreamReader(await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false), Encoding.UTF8)))
@@ -132,15 +132,15 @@ namespace Inedo.DependencyScan
                 jdoc = JObject.Load(reader);
             }
 
-            return enumeratePackages(jdoc);
+            return enumeratePackages(jdoc, considerProjectReferences);
 
-            static IEnumerable<DependencyPackage> enumeratePackages(JObject jdoc)
+            static IEnumerable<DependencyPackage> enumeratePackages(JObject jdoc, bool considerProjectReferences)
             {
                 if (jdoc["libraries"] is JObject libraries)
                 {
                     foreach (var library in libraries.Properties())
                     {
-                        if ((string)((JObject)library.Value).Property("type") == "package")
+                        if ((string)((JObject)library.Value).Property("type") == "package" || ((string)((JObject)library.Value).Property("type") == "project" && considerProjectReferences))
                         {
                             var parts = library.Name.Split(new[] { '/' }, 2);
     
