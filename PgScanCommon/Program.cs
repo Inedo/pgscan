@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Inedo.DependencyScan
 {
@@ -81,14 +82,18 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
+            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
+            if (!string.IsNullOrEmpty(considerProjectReferences))
+                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
+
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync();
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences is null ? false : true);
             if (projects.Count > 0)
             {
                 foreach (var p in projects)
                 {
                     Console.WriteLine(p.Name ?? "(project)");
-                    foreach (var d in p.Dependencies)
+                    foreach (var d in p.Dependencies.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                         Console.WriteLine($"  => {d.Name} {d.Version}");
 
                     Console.WriteLine();
@@ -112,7 +117,17 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
-            var packageFeed = args.GetRequiredNamed("package-feed");
+            string[] packageFeeds;
+            if (args.Named.TryGetValue("package-feeds", out var packageFeedsCommaSeparated))
+            {
+                packageFeeds = packageFeedsCommaSeparated.Split(',');
+            }
+            else
+            {
+                var packageFeed = args.GetRequiredNamed("package-feed");
+                packageFeeds = new[] { packageFeed };
+            }
+
             var progetUrl = args.GetRequiredNamed("proget-url");
             var consumerSource = args.GetRequiredNamed("consumer-package-source");
 
@@ -160,8 +175,12 @@ namespace Inedo.DependencyScan
             else
                 consumerFeed = consumerSource;
 
+            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
+            if (!string.IsNullOrEmpty(considerProjectReferences))
+                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
+
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync();
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences == null ? false : true);
 
 
             if (string.IsNullOrEmpty(consumerName))
@@ -177,10 +196,11 @@ namespace Inedo.DependencyScan
                         Url = consumerUrl
                     };
 
-                    foreach (var package in project.Dependencies)
+                    foreach (var package in project.Dependencies.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                     {
-                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name}...");
-                        await package.PublishDependencyAsync(
+                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name} {consumerVersion}...");
+                        foreach (var packageFeed in packageFeeds)
+                            await package.PublishDependencyAsync(
                             progetUrl,
                             packageFeed,
                             consumer,
@@ -210,15 +230,16 @@ namespace Inedo.DependencyScan
                     }
                 }
 
-                foreach (var package in hashset)
+                foreach (var package in hashset.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
                 {
-                    Console.WriteLine($"Publishing consumer data for {package} for {consumerName}...");
-                    await package.PublishDependencyAsync(
-                        progetUrl,
-                        packageFeed,
-                        consumer,
-                        apiKey
-                    );
+                    Console.WriteLine($"Publishing consumer data for {package} consumed by {consumerName} {consumerVersion}...");
+                    foreach (var packageFeed in packageFeeds)
+                        await package.PublishDependencyAsync(
+                             progetUrl,
+                             packageFeed,
+                             consumer,
+                             apiKey
+                         );
                 }
             }
 
@@ -337,6 +358,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --consumer-package-group=<group>");
                     Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
+                    Console.WriteLine("  --consider-project-references (treat project references as package references)");
                     Console.WriteLine();
                     break;
 
