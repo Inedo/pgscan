@@ -97,6 +97,7 @@ namespace Inedo.DependencyScan
             var request = WebRequest.CreateHttp(this.BaseUrl + "/api/dependencies/dependents");
             request.Method = "POST";
             request.ContentType = "application/json";
+            request.UseDefaultCredentials = true;
 
             using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
