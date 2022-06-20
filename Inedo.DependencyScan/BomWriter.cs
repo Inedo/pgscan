@@ -72,7 +72,7 @@ namespace Inedo.DependencyScan
 
             var fullName = string.IsNullOrEmpty(group) ? name : $"{group}/{name}";
 
-            this.writer.WriteElementString("purl", $"pkg:{type}/{fullName}@{version}");
+            this.writer.WriteElementString("purl", $"pkg:{type}/{Uri.EscapeUriString(fullName)}@{version}");
 
             this.writer.WriteEndElement(); // component
         }

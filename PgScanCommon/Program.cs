@@ -39,7 +39,7 @@ namespace Inedo.DependencyScan
                             await Publish(argList);
                             break;
 
-                        case "report-bom":
+                        case "publish-bom":
                             await CreateBom(argList);
                             break;
 
@@ -182,7 +182,6 @@ namespace Inedo.DependencyScan
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences == null ? false : true);
 
-
             if (string.IsNullOrEmpty(consumerName))
             {
                 foreach (var project in projects)
@@ -272,19 +271,33 @@ namespace Inedo.DependencyScan
             args.Named.TryGetValue("consumer-package-type", out var consumerType);
             consumerType ??= "library";
 
+            var progetUrl = args.GetRequiredNamed("proget-url");
+            args.Named.TryGetValue("api-key", out var apiKey);
+
             if (projects.Count > 0)
             {
-                using var bomFile = File.Create(fileName);
-                using var bomWriter = new BomWriter(bomFile);
-                bomWriter.Begin(consumerGroup, consumerName, consumerVersion, consumerType);
+                var client = new ProGetClient(progetUrl);
+                await client.PublishSbomAsync(
+                    projects,
+                    new PackageConsumer { Group = consumerGroup, Name = consumerName, Version = consumerVersion },
+                    consumerType,
+                    scanner.Type.ToString().ToLowerInvariant(),
+                    apiKey
+                );
 
-                foreach (var p in projects)
+                using var bomFile = new MemoryStream();
+                using (var bomWriter = new BomWriter(bomFile))
                 {
-                    foreach (var d in p.Dependencies)
-                        bomWriter.AddPackage(d.Group, d.Name, d.Version, scanner.Type.ToString().ToLowerInvariant());
+                    bomWriter.Begin(consumerGroup, consumerName, consumerVersion, consumerType);
 
-                    Console.WriteLine();
+                    foreach (var p in projects)
+                    {
+                        foreach (var d in p.Dependencies)
+                            bomWriter.AddPackage(d.Group, d.Name, d.Version, scanner.Type.ToString().ToLowerInvariant());
+                    }
                 }
+
+
             }
             else
             {
@@ -326,10 +339,10 @@ namespace Inedo.DependencyScan
                     Console.WriteLine();
                     break;
 
-                case "report-bom":
-                    Console.WriteLine("Usage: pgscan report-bom [options...]");
+                case "publish-bom":
+                    Console.WriteLine("Usage: pgscan publish-bom [options...]");
                     Console.WriteLine();
-                    Console.WriteLine("Generates a minimal sbom file with project dependency data.");
+                    Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --type=<nuget|npm|pypi>");
@@ -338,7 +351,9 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --consumer-package-version=<version>");
                     Console.WriteLine("  --consumer-package-group=<group>");
                     Console.WriteLine("  --consumer-project-type=<library/application>");
-                    Console.WriteLine("  --output=<file name>");
+                    Console.WriteLine("  --proget-url=<ProGet base URL>");
+                    Console.WriteLine("  --api-key=<ProGet API key>");
+                    Console.WriteLine("  --consider-project-references (treat project references as package references)");
                     Console.WriteLine();
                     break;
 
@@ -370,7 +385,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Commands:");
                     Console.WriteLine("  help\tDisplay command help");
                     Console.WriteLine("  report\tDisplay dependency data");
-                    Console.WriteLine("  report-bom\tGenerate minimal sbom file");
+                    Console.WriteLine("  publish-bom\tPublish minimal sbom file to ProGet");
                     Console.WriteLine("  publish\tPublish dependency data to ProGet");
                     Console.WriteLine();
                     break;
