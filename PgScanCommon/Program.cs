@@ -39,7 +39,7 @@ namespace Inedo.DependencyScan
                             await Publish(argList);
                             break;
 
-                        case "publish-bom":
+                        case "identify":
                             await CreateBom(argList);
                             break;
 
@@ -249,8 +249,8 @@ namespace Inedo.DependencyScan
         {
             if (!args.Named.TryGetValue("input", out var inputFileName))
                 throw new PgScanException("Missing required argument --input=<input file name>");
-            if (!args.Named.TryGetValue("consumer-package-name", out var consumerName))
-                throw new PgScanException("Missing required argument --consumer-package-name=<name>");
+            if (!args.Named.TryGetValue("project-name", out var consumerName))
+                throw new PgScanException("Missing required argument --project-name=<name>");
 
             args.Named.TryGetValue("type", out var typeName);
             typeName ??= GetImplicitTypeName(inputFileName);
@@ -260,15 +260,12 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
-            var fileName = args.GetRequiredNamed("output");
-
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync();
 
-            args.Named.TryGetValue("consumer-package-group", out var consumerGroup);
-            args.Named.TryGetValue("consumer-package-version", out var consumerVersion);
+            args.Named.TryGetValue("version", out var consumerVersion);
 
-            args.Named.TryGetValue("consumer-package-type", out var consumerType);
+            args.Named.TryGetValue("project-type", out var consumerType);
             consumerType ??= "library";
 
             var progetUrl = args.GetRequiredNamed("proget-url");
@@ -279,25 +276,11 @@ namespace Inedo.DependencyScan
                 var client = new ProGetClient(progetUrl);
                 await client.PublishSbomAsync(
                     projects,
-                    new PackageConsumer { Group = consumerGroup, Name = consumerName, Version = consumerVersion },
+                    new PackageConsumer { Name = consumerName, Version = consumerVersion },
                     consumerType,
                     scanner.Type.ToString().ToLowerInvariant(),
                     apiKey
                 );
-
-                using var bomFile = new MemoryStream();
-                using (var bomWriter = new BomWriter(bomFile))
-                {
-                    bomWriter.Begin(consumerGroup, consumerName, consumerVersion, consumerType);
-
-                    foreach (var p in projects)
-                    {
-                        foreach (var d in p.Dependencies)
-                            bomWriter.AddPackage(d.Group, d.Name, d.Version, scanner.Type.ToString().ToLowerInvariant());
-                    }
-                }
-
-
             }
             else
             {
@@ -339,18 +322,17 @@ namespace Inedo.DependencyScan
                     Console.WriteLine();
                     break;
 
-                case "publish-bom":
-                    Console.WriteLine("Usage: pgscan publish-bom [options...]");
+                case "identify":
+                    Console.WriteLine("Usage: pgscan identify [options...]");
                     Console.WriteLine();
                     Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --type=<nuget|npm|pypi>");
                     Console.WriteLine("  --input=<source file name>");
-                    Console.WriteLine("  --consumer-package-name=<name>");
-                    Console.WriteLine("  --consumer-package-version=<version>");
-                    Console.WriteLine("  --consumer-package-group=<group>");
-                    Console.WriteLine("  --consumer-project-type=<library/application>");
+                    Console.WriteLine("  --project-name=<name>");
+                    Console.WriteLine("  --version=<version>");
+                    Console.WriteLine("  --project-type=<library/application>");
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
@@ -385,7 +367,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Commands:");
                     Console.WriteLine("  help\tDisplay command help");
                     Console.WriteLine("  report\tDisplay dependency data");
-                    Console.WriteLine("  publish-bom\tPublish minimal sbom file to ProGet");
+                    Console.WriteLine("  identify\tPublish minimal sbom file to ProGet");
                     Console.WriteLine("  publish\tPublish dependency data to ProGet");
                     Console.WriteLine();
                     break;

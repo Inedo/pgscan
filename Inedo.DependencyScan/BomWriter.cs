@@ -10,16 +10,18 @@ namespace Inedo.DependencyScan
     /// </summary>
     public class BomWriter : IDisposable
     {
+        private const string ns = "http://cyclonedx.org/schema/bom/1.2";
         private readonly XmlWriter writer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BomWriter"/> class.
         /// </summary>
         /// <param name="stream">Stream into which SBOM is written.</param>
-        public BomWriter(Stream stream)
+        /// <param name="closeOutput">Value indicating whether to close <paramref name="stream"/>.</param>
+        public BomWriter(Stream stream, bool closeOutput = true)
         {
-            this.writer = XmlWriter.Create(new StreamWriter(stream, new UTF8Encoding(false)), new XmlWriterSettings { CloseOutput = true, WriteEndDocumentOnClose = true });
-            this.writer.WriteStartElement("bom");
+            this.writer = XmlWriter.Create(new StreamWriter(stream, new UTF8Encoding(false)), new XmlWriterSettings { CloseOutput = closeOutput, WriteEndDocumentOnClose = true });
+            this.writer.WriteStartElement("bom", ns);
             this.writer.WriteAttributeString("serialNumber", "urn:uuid:" + Guid.NewGuid().ToString("n"));
             this.writer.WriteAttributeString("version", "1");
         }
@@ -33,24 +35,24 @@ namespace Inedo.DependencyScan
         /// <param name="type">The project type (typically application or library).</param>
         public void Begin(string group, string name, string version, string type)
         {
-            this.writer.WriteStartElement("metadata");
+            this.writer.WriteStartElement("metadata", ns);
 
-            this.writer.WriteElementString("timestamp", DateTime.UtcNow.ToString("o"));
+            this.writer.WriteElementString("timestamp", ns, DateTime.UtcNow.ToString("o"));
 
-            this.writer.WriteStartElement("component");
+            this.writer.WriteStartElement("component", ns);
             this.writer.WriteAttributeString("type", type);
 
             if (!string.IsNullOrEmpty(group))
-                this.writer.WriteElementString("group", group);
+                this.writer.WriteElementString("group", ns, group);
 
-            this.writer.WriteElementString("name", name);
-            this.writer.WriteElementString("version", version);
+            this.writer.WriteElementString("name", ns, name);
+            this.writer.WriteElementString("version", ns, version);
 
             this.writer.WriteEndElement(); // component
 
             this.writer.WriteEndElement(); // metadata
 
-            this.writer.WriteStartElement("components");
+            this.writer.WriteStartElement("components", ns);
         }
         /// <summary>
         /// Records package information in the SBOM.
@@ -61,18 +63,18 @@ namespace Inedo.DependencyScan
         /// <param name="type">The package type (nuget,npm,pypi).</param>
         public void AddPackage(string group, string name, string version, string type)
         {
-            this.writer.WriteStartElement("component");
+            this.writer.WriteStartElement("component", ns);
             this.writer.WriteAttributeString("type", "library");
 
             if (!string.IsNullOrEmpty(group))
-                this.writer.WriteElementString("group", group);
+                this.writer.WriteElementString("group", ns, group);
 
-            this.writer.WriteElementString("name", name);
-            this.writer.WriteElementString("version", version);
+            this.writer.WriteElementString("name", ns, name);
+            this.writer.WriteElementString("version", ns, version);
 
             var fullName = string.IsNullOrEmpty(group) ? name : $"{group}/{name}";
 
-            this.writer.WriteElementString("purl", $"pkg:{type}/{Uri.EscapeUriString(fullName)}@{version}");
+            this.writer.WriteElementString("purl", ns, $"pkg:{type}/{Uri.EscapeUriString(fullName)}@{version}");
 
             this.writer.WriteEndElement(); // component
         }
