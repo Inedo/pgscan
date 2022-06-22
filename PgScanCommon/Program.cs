@@ -174,11 +174,12 @@ namespace Inedo.DependencyScan
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences == null ? false : true);
 
-
             if (string.IsNullOrEmpty(consumerName))
             {
                 foreach (var project in projects)
                 {
+                    var dependents = new HashSet<DependencyPackage>();
+
                     var consumer = new PackageConsumer
                     {
                         Name = project.Name,
@@ -188,11 +189,16 @@ namespace Inedo.DependencyScan
                         Url = consumerUrl
                     };
 
-                    foreach (var package in project.Dependencies.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
+                    foreach (var package in project.Dependencies)
                     {
-                        Console.WriteLine($"Publishing consumer data for {package} consumed by {project.Name} {consumerVersion}...");
-                        foreach (var packageFeed in packageFeeds)
-                            await package.PublishDependencyAsync(
+                        if (dependents.Add(package))
+                            Console.WriteLine($"Publishing consumer data for {package}...");
+                    }
+
+                    foreach (var packageFeed in packageFeeds)
+                    {
+                        await DependencyPackage.PublishDependenciesAsync(
+                            dependents,
                             progetUrl,
                             packageFeed,
                             consumer,
@@ -212,26 +218,26 @@ namespace Inedo.DependencyScan
                     Url = consumerUrl
                 };
 
-                // aggregate packages usages so consumer infos won't be published mutiple times
-                var hashset = new HashSet<DependencyPackage>();
+                var dependents = new HashSet<DependencyPackage>();
+
                 foreach (var project in projects)
                 {
                     foreach (var package in project.Dependencies)
                     {
-                        hashset.Add(package);
+                        if (dependents.Add(package))
+                            Console.WriteLine($"Publishing consumer data for {package}...");
                     }
                 }
 
-                foreach (var package in hashset.OrderBy(dep => dep.Name).ThenBy(dep => dep.Version))
+                foreach (var packageFeed in packageFeeds)
                 {
-                    Console.WriteLine($"Publishing consumer data for {package} consumed by {consumerName} {consumerVersion}...");
-                    foreach (var packageFeed in packageFeeds)
-                        await package.PublishDependencyAsync(
-                             progetUrl,
-                             packageFeed,
-                             consumer,
-                             apiKey
-                         );
+                    await DependencyPackage.PublishDependenciesAsync(
+                        dependents,
+                        progetUrl,
+                        packageFeed,
+                        consumer,
+                        apiKey
+                    );
                 }
             }
 
