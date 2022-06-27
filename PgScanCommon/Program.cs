@@ -39,6 +39,14 @@ namespace Inedo.DependencyScan
                             await Publish(argList);
                             break;
 
+                        case "identify":
+                            await CreateBom(argList);
+                            break;
+
+                        case "help":
+                            Usage(argList.TryGetPositional(0));
+                            break;
+
                         default:
                             throw new PgScanException($"Invalid command: {argList.Command}", true);
                     }
@@ -244,6 +252,49 @@ namespace Inedo.DependencyScan
             Console.WriteLine("Dependencies published!");
         }
 
+        private static async Task CreateBom(ArgList args)
+        {
+            if (!args.Named.TryGetValue("input", out var inputFileName))
+                throw new PgScanException("Missing required argument --input=<input file name>");
+            if (!args.Named.TryGetValue("project-name", out var consumerName))
+                throw new PgScanException("Missing required argument --project-name=<name>");
+
+            args.Named.TryGetValue("type", out var typeName);
+            typeName ??= GetImplicitTypeName(inputFileName);
+            if (string.IsNullOrWhiteSpace(typeName))
+                throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
+
+            if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
+                throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
+
+            var scanner = DependencyScanner.GetScanner(inputFileName, type);
+            var projects = await scanner.ResolveDependenciesAsync();
+
+            args.Named.TryGetValue("version", out var consumerVersion);
+
+            args.Named.TryGetValue("project-type", out var consumerType);
+            consumerType ??= "library";
+
+            var progetUrl = args.GetRequiredNamed("proget-url");
+            args.Named.TryGetValue("api-key", out var apiKey);
+
+            if (projects.Count > 0)
+            {
+                var client = new ProGetClient(progetUrl);
+                await client.PublishSbomAsync(
+                    projects,
+                    new PackageConsumer { Name = consumerName, Version = consumerVersion },
+                    consumerType,
+                    scanner.Type.ToString().ToLowerInvariant(),
+                    apiKey
+                );
+            }
+            else
+            {
+                Console.WriteLine("No projects found.");
+            }
+        }
+
         private static string GetImplicitTypeName(string fileName)
         {
             return Path.GetExtension(fileName).ToLowerInvariant() switch
@@ -254,28 +305,80 @@ namespace Inedo.DependencyScan
             };
         }
 
-        private static void Usage()
+        private static void Usage(string command = null)
         {
             Console.WriteLine($"pgscan v{typeof(Program).Assembly.GetName().Version}");
-            Console.WriteLine("Usage: pgscan <command> [options...]");
-            Console.WriteLine("Options:");
-            Console.WriteLine("  --type=<nuget|npm|pypi>");
-            Console.WriteLine("  --input=<source file name>");
-            Console.WriteLine("  --package-feed=<ProGet feed name>");
-            Console.WriteLine("  --package-feeds=<comma-separated list of ProGet feed names>");
-            Console.WriteLine("  --proget-url=<ProGet base URL>");
-            Console.WriteLine("  --consumer-package-source=<feed name or URL>");
-            Console.WriteLine("  --consumer-package-name=<name>");
-            Console.WriteLine("  --consumer-package-version=<version>");
-            Console.WriteLine("  --consumer-package-group=<group>");
-            Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
-            Console.WriteLine("  --api-key=<ProGet API key>");
-            Console.WriteLine("  --consider-project-references (treat project references as package references)");
-            Console.WriteLine();
-            Console.WriteLine("Commands:");
-            Console.WriteLine("  report\tDisplay dependency data");
-            Console.WriteLine("  publish\tPublish dependency data to ProGet");
-            Console.WriteLine();
+
+            switch (command?.ToLowerInvariant())
+            {
+                case "help":
+                    Console.WriteLine("Usage: pgscan help <command>");
+                    Console.WriteLine();
+                    Console.WriteLine("Displays usage information for the specified command.");
+                    Console.WriteLine();
+                    break;
+
+                case "report":
+                    Console.WriteLine("Usage: pgscan report [options...]");
+                    Console.WriteLine();
+                    Console.WriteLine("Display project dependency data.");
+                    Console.WriteLine();
+                    Console.WriteLine("Options:");
+                    Console.WriteLine("  --type=<nuget|npm|pypi>");
+                    Console.WriteLine("  --input=<source file name>");
+                    Console.WriteLine();
+                    break;
+
+                case "identify":
+                    Console.WriteLine("Usage: pgscan identify [options...]");
+                    Console.WriteLine();
+                    Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet.");
+                    Console.WriteLine();
+                    Console.WriteLine("Options:");
+                    Console.WriteLine("  --type=<nuget|npm|pypi>");
+                    Console.WriteLine("  --input=<source file name>");
+                    Console.WriteLine("  --project-name=<name>");
+                    Console.WriteLine("  --version=<version>");
+                    Console.WriteLine("  --project-type=<library/application>");
+                    Console.WriteLine("  --proget-url=<ProGet base URL>");
+                    Console.WriteLine("  --api-key=<ProGet API key>");
+                    Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine();
+                    break;
+
+                case "publish":
+                    Console.WriteLine("Usage: pgscan publish [options...]");
+                    Console.WriteLine();
+                    Console.WriteLine("Publish project dependency data to ProGet.");
+                    Console.WriteLine();
+                    Console.WriteLine("Options:");
+                    Console.WriteLine("  --type=<nuget|npm|pypi>");
+                    Console.WriteLine("  --input=<source file name>");
+                    Console.WriteLine("  --package-feed=<ProGet feed name>");
+                    Console.WriteLine("  --proget-url=<ProGet base URL>");
+                    Console.WriteLine("  --consumer-package-source=<feed name or URL>");
+                    Console.WriteLine("  --consumer-package-name=<name>");
+                    Console.WriteLine("  --consumer-package-version=<version>");
+                    Console.WriteLine("  --consumer-package-group=<group>");
+                    Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
+                    Console.WriteLine("  --api-key=<ProGet API key>");
+                    Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine();
+                    break;
+
+                default:
+                    if (!string.IsNullOrEmpty(command))
+                        Console.Error.WriteLine("Invalid command: " + command);
+                    Console.WriteLine("Usage: pgscan <command> [options...]");
+                    Console.WriteLine();
+                    Console.WriteLine("Commands:");
+                    Console.WriteLine("  help\tDisplay command help");
+                    Console.WriteLine("  report\tDisplay dependency data");
+                    Console.WriteLine("  identify\tPublish minimal sbom file to ProGet");
+                    Console.WriteLine("  publish\tPublish dependency data to ProGet");
+                    Console.WriteLine();
+                    break;
+            }
         }
     }
 }
