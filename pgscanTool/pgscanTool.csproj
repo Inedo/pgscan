@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<RootNamespace>Inedo.DependencyScan</RootNamespace>
 		<LangVersion>latest</LangVersion>
 		<Authors>Inedo</Authors>
@@ -16,7 +16,8 @@
 		<PackageTags>inedo proget dependencies</PackageTags>
 		<PackageProjectUrl>https://github.com/Inedo/pgscan</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/Inedo/pgscan.git</RepositoryUrl>
-	</PropertyGroup>
+    <NoWarn>SYSLIB0013;SYSLIB0014</NoWarn>
+  </PropertyGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Inedo.DependencyScan\Inedo.DependencyScan.csproj" />
 	</ItemGroup>
