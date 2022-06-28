@@ -19,8 +19,16 @@ Install the tool using dotnet. For example, to install the tool locally to the c
 dotnet tool install pgscan
 ```
 
+## Usage (CLI/tool with ProGet 2022 or newer)
 
-## Usage (CLI/tool)
+Execute `pgscan` with the `identify` command. For example, to generate an SBOM and submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet:
+
+```Batchfile
+pgscan identify --input=MyLibrary.csproj --proget-url=https://proget.local --consumer-package-version=1.0.0
+```
+
+
+## Usage (CLI/tool with ProGet v6)
 
 Execute `pgscan` with the `publish` command. For example, to submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet's `Libraries` feed:
 
