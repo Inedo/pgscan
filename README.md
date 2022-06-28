@@ -50,3 +50,36 @@ ProGet::Record-Dependencies
     ConsumerVersion: $ReleaseNumber
 );
 ```
+
+## Usage (GitHub Actions)
+
+Use a local `dotnet tool` action to run pgscan on Windows and Linux build agents.
+
+1. Create a [ProGet API key](https://docs.inedo.com/docs/proget-administration-security-api-keys)
+   1. Once the API Key is created in ProGet, you will need to add it as a Secret on your GitHub project
+   2. Navigate to your project in GitHub
+   3. Click "Settings"
+   4. Navigate to "Secrets -> Actions" on the right
+   5. Click "New repository secret"
+   6. Enter a name (ex: `PROGETAPIKEY`) and your API key as the secret value
+2. Commit a dotnet tool manifest
+   1. At the root of your repository, run `dotnet new tool-manifest` (see [Microsoft's local tool](https://docs.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use#create-a-manifest-file) documentation for more information)
+   2. Commit this to your git repository
+3. Setup .NET 6.0 in your workflow
+   - If you are already using dotnet 6 in your workflow, go to the next step.
+   - Add the following to your workflow:
+    ```
+        - name: Setup .NET
+          uses: actions/setup-dotnet@v2
+          with:
+            dotnet-version: 6.0.x
+    ```
+    - This can be added anywhere before the pgscan steps, but is typically added at the beginning
+4. Add the pgscan steps after build/publish steps of your code
+```
+    - name: Install pgscan
+      run: dotnet tool install pgscan
+    - name: Run pgscan
+      working-directory: ProfiteCalcNet.Console
+      run: dotnet tool run pgscan identify --type=nuget --input=MyProject.csproj --project-name=MyProject --version=1.0.0 --project-type=application --proget-url=https://proget.local --api-key=${{ secrets.PROGETAPIKEY }}
+```
