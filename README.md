@@ -68,7 +68,7 @@ Use a local `dotnet tool` action to run pgscan on Windows and Linux build agents
 3. Setup .NET 6.0 in your workflow
    - If you are already using dotnet 6 in your workflow, go to the next step.
    - Add the following to your workflow:
-    ```
+    ```yaml
         - name: Setup .NET
           uses: actions/setup-dotnet@v2
           with:
@@ -76,10 +76,42 @@ Use a local `dotnet tool` action to run pgscan on Windows and Linux build agents
     ```
     - This can be added anywhere before the pgscan steps, but is typically added at the beginning
 4. Add the pgscan steps after build/publish steps of your code
-```
+```yaml
     - name: Install pgscan
       run: dotnet tool install pgscan
     - name: Run pgscan
       working-directory: ProfiteCalcNet.Console
       run: dotnet tool run pgscan identify --type=nuget --input=MyProject.csproj --project-name=MyProject --version=1.0.0 --project-type=application --proget-url=https://proget.local --api-key=${{ secrets.PROGETAPIKEY }}
 ```
+
+
+## Usage (Azure DevOps)
+
+Use a local `dotnet tool` action to run pgscan on Windows and Linux build agents.
+
+1. Create a [ProGet API key](https://docs.inedo.com/docs/proget-administration-security-api-keys)
+   1. Once the API Key is created in ProGet, you will need to add it as a secrete Variable on your pipeline.
+   2. Navigate to your pipeline in Azure DevOps
+   3. Click Edit
+   4. Click Variables and then the plus icon
+   5. Enter a name (ex: `PROGETAPIKEY`) and your API key as the value
+   6. Check "Keep this value Secret"
+   7. Click OK
+2. Commit a dotnet tool manifest
+   1. At the root of your repository, run `dotnet new tool-manifest` (see [Microsoft's local tool](https://docs.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use#create-a-manifest-file) documentation for more information)
+   2. Commit this to your git repository
+3. Add .NET 6.0 in your pipeline
+   - If you are already using dotnet 6 in your pipeline, go to the next step.
+   - Add the following to your workflow:
+    ```yaml
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '6.0.x'
+    ```
+    - This can be added anywhere before the pgscan steps, but is typically added at the beginning
+4. Add the pgscan steps after build/publish steps of your code
+   ```yaml
+   - script: dotnet tool install pgscan
+   - script: dotnet tool run pgscan identify --type=nuget --input=MyProject.csproj --project-name=MyProject --version=1.0.0 --project-type=application --proget-url=https://proget.local --api-key=$(PROGETAPIKEY)
+   ```
