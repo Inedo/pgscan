@@ -134,6 +134,8 @@ namespace Inedo.DependencyScan
             request.Method = "POST";
             request.ContentType = "application/json";
             request.UseDefaultCredentials = true;
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                request.Headers.Add("X-ApiKey", apiKey);
 
             using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
