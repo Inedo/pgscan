@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,7 +55,7 @@ namespace Inedo.DependencyScan
         /// <param name="path">The path of the file to check.</param>
         /// <param name="cancellationToken">Token used to cancel the asynchronous operation.</param>
         /// <returns>True if the file exists; otherwise false.</returns>
-        Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken);
+        ValueTask<bool> FileExistsAsync(string path, CancellationToken cancellationToken);
         /// <summary>
         /// Opens an existing file for reading.
         /// </summary>
@@ -64,5 +65,14 @@ namespace Inedo.DependencyScan
         /// A read-only <see cref="Stream"/> on the specified path.
         /// </returns>
         Task<Stream> OpenReadAsync(string path, CancellationToken cancellationToken);
+        /// <summary>
+        /// Searches a directory for files matching a wildcard filter.
+        /// </summary>
+        /// <param name="path">Directory to search.</param>
+        /// <param name="filter">Wildcard file filter.</param>
+        /// <param name="recursive">True to also search subdirectories; false to only search root.</param>
+        /// <param name="cancellationToken">Token used to cancel the asynchronous operation.</param>
+        /// <returns>Files found in <paramref name="path"/> that match <paramref name="filter"/>.</returns>
+        IAsyncEnumerable<SimpleFileInfo> FindFilesAsync(string path, string filter, bool recursive, CancellationToken cancellationToken);
     }
 }
