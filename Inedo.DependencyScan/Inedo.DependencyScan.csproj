@@ -19,7 +19,6 @@
     <NoWarn>CS1591;SYSLIB0013;SYSLIB0014;SYSLIB0020</NoWarn>
   </PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="12.0.3" Condition="'$(TargetFramework)' == 'net452'" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" Condition="'$(TargetFramework)' == 'net452'" />
 	</ItemGroup>
 </Project>
