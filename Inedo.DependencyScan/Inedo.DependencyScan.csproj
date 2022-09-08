@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;net5.0;net452</TargetFrameworks>
+		<TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Authors>Inedo</Authors>
 		<Company>Inedo</Company>
 		<Product>ProGet</Product>
-		<Copyright>Copyright © Inedo 2021</Copyright>
+		<Copyright>Copyright © Inedo 2022</Copyright>
 		<Description>Scans for NuGet, npm, or PyPI dependencies and optionally publishes them to a ProGet instance.</Description>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/Inedo/pgscan</PackageProjectUrl>
@@ -19,6 +19,6 @@
     <NoWarn>CS1591;SYSLIB0013;SYSLIB0014;SYSLIB0020</NoWarn>
   </PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" Condition="'$(TargetFramework)' == 'net452'" />
+	  <PackageReference Include="System.Text.Json" Version="6.0.5" />
 	</ItemGroup>
 </Project>

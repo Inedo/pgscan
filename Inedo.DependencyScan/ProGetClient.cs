@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
-using System.Threading.Tasks;
-using System.Linq;
-#if !NET452
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#else
-using Newtonsoft.Json;
-using JsonPropertyNameAttribute = Newtonsoft.Json.JsonPropertyAttribute;
-#endif
+using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
@@ -92,21 +87,11 @@ namespace Inedo.DependencyScan
 
             using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
-#if !NET452
-                using var writer = new Utf8JsonWriter(requestStream);
-                JsonSerializer.Serialize(writer, new DependentPackage(package, feed, consumer, comments), new JsonSerializerOptions
-                {
-                    IgnoreNullValues = true
-                });
-#else
-                using (var writer = new StreamWriter(requestStream, Encoding.UTF8))
-                {
-                    new JsonSerializer
-                    {
-                        NullValueHandling = NullValueHandling.Ignore
-                    }.Serialize(writer, new DependentPackage(package, feed, consumer, comments));
-                }
-#endif
+                JsonSerializer.Serialize(
+                    requestStream,
+                    new DependentPackage(package, feed, consumer, comments),
+                    new JsonSerializerOptions { IgnoreNullValues = true }
+                );
             }
 
             try
@@ -139,17 +124,11 @@ namespace Inedo.DependencyScan
 
             using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
-#if !NET452
-                using var writer = new Utf8JsonWriter(requestStream);
                 JsonSerializer.Serialize(
-                    writer,
+                    requestStream,
                     packages.Select(p => new DependentPackage(p, feed, consumer, comments)),
                     new JsonSerializerOptions { IgnoreNullValues = true }
                 );
-#else
-                using var writer = new StreamWriter(requestStream, Encoding.UTF8);
-                new JsonSerializer { NullValueHandling = NullValueHandling.Ignore }.Serialize(writer, packages.Select(p => new DependentPackage(p, feed, consumer, comments)));
-#endif
             }
 
             try

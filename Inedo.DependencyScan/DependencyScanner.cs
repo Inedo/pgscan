@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +23,7 @@ namespace Inedo.DependencyScan
         public string SourcePath
         {
             get;
-#if NET452
+#if !NETCOREAPP
             private set;
 #else
             private init;
@@ -34,7 +35,7 @@ namespace Inedo.DependencyScan
         public ISourceFileSystem FileSystem
         {
             get;
-#if NET452
+#if !NETCOREAPP
             private set;
 #else
             private init;
@@ -79,20 +80,14 @@ namespace Inedo.DependencyScan
             };
         }
 
-        private protected async Task<IEnumerable<string>> ReadLinesAsync(string path, CancellationToken cancellationToken)
+        private protected async IAsyncEnumerable<string> ReadLinesAsync(string path, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            return streamLines(new StreamReader(await this.FileSystem.OpenReadAsync(path, cancellationToken).ConfigureAwait(false), Encoding.UTF8));
+            using var reader = new StreamReader(await this.FileSystem.OpenReadAsync(path, cancellationToken).ConfigureAwait(false), Encoding.UTF8);
 
-            static IEnumerable<string> streamLines(StreamReader reader)
+            string line;
+            while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
             {
-                using (reader)
-                {
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        yield return line;
-                    }
-                }
+                yield return line;
             }
         }
 

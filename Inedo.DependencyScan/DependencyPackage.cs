@@ -18,7 +18,7 @@ namespace Inedo.DependencyScan
         public string Name
         {
             get;
-#if NET452
+#if !NETCOREAPP
             internal set;
 #else
             internal init;
@@ -30,7 +30,7 @@ namespace Inedo.DependencyScan
         public string Group
         {
             get;
-#if NET452
+#if !NETCOREAPP
             internal set;
 #else
             internal init;
@@ -42,7 +42,7 @@ namespace Inedo.DependencyScan
         public string Version
         {
             get;
-#if NET452
+#if !NETCOREAPP
             internal set;
 #else
             internal init;

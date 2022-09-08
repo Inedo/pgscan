@@ -18,7 +18,7 @@
         public string Name
         {
             get;
-#if NET452
+#if !NETCOREAPP
             set;
 #else
             init;
@@ -30,7 +30,7 @@
         public string Group
         {
             get;
-#if NET452
+#if !NETCOREAPP
             set;
 #else
             init;
@@ -42,7 +42,7 @@
         public string Version
         {
             get;
-#if NET452
+#if !NETCOREAPP
             set;
 #else
             init;
@@ -54,7 +54,7 @@
         public string Feed
         {
             get;
-#if NET452
+#if !NETCOREAPP
             set;
 #else
             init;
@@ -66,7 +66,7 @@
         public string Url
         {
             get;
-#if NET452
+#if !NETCOREAPP
             set;
 #else
             init;

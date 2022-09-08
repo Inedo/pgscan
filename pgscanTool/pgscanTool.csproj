@@ -8,7 +8,7 @@
 		<Company>Inedo</Company>
 		<Product>ProGet</Product>
 		<Description>Scans for NuGet, npm, or PyPI dependencies and optionally publishes them to a ProGet instance.</Description>
-		<Copyright>Copyright © Inedo 2021</Copyright>
+		<Copyright>Copyright © Inedo 2022</Copyright>
 		<PackAsTool>true</PackAsTool>
 		<AssemblyName>pgscan</AssemblyName>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>

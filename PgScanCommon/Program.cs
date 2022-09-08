@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
@@ -11,10 +11,6 @@ namespace Inedo.DependencyScan
     {
         public static async Task<int> Main(string[] args)
         {
-#if NET452
-            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
-#endif
-
             try
             {
                 try
@@ -87,7 +83,7 @@ namespace Inedo.DependencyScan
                 throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences is null ? false : true);
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences is not null);
             if (projects.Count > 0)
             {
                 foreach (var p in projects)
@@ -154,7 +150,7 @@ namespace Inedo.DependencyScan
                 throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences == null ? false : true);
+            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences != null);
 
             if (string.IsNullOrEmpty(consumerName))
             {

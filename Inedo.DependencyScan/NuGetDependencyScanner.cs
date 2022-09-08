@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
-using System.Threading.Tasks;
-using System.Threading;
-#if !NET452
+using System.Runtime.CompilerServices;
 using System.Text.Json;
-#else
-using System.IO;
-using System.Text;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-#endif
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Inedo.DependencyScan
 {
@@ -30,10 +23,10 @@ namespace Inedo.DependencyScan
 
                 var solutionRoot = this.FileSystem.GetDirectoryName(this.SourcePath);
 
-                foreach (var p in await ReadProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
+                await foreach (var p in ReadProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
                 {
                     var projectPath = this.FileSystem.Combine(solutionRoot, p);
-                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), await ReadProjectDependenciesAsync(projectPath, considerProjectReferences, cancellationToken).ConfigureAwait(false)));
+                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), await ReadProjectDependenciesAsync(projectPath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false)));
                 }
 
                 return projects;
@@ -42,118 +35,84 @@ namespace Inedo.DependencyScan
             {
                 return new[]
                 {
-                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ConfigureAwait(false))
+                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false))
                 };
             }
         }
 
-        private async Task<IEnumerable<string>> ReadProjectsFromSolutionAsync(string solutionPath, CancellationToken cancellationToken)
+        private async IAsyncEnumerable<string> ReadProjectsFromSolutionAsync(string solutionPath, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            return (await this.ReadLinesAsync(solutionPath, cancellationToken).ConfigureAwait(false))
-                .Select(l => SolutionProjectRegex.Match(l))
-                .Where(m => m.Success)
-                .Select(m => m.Groups[1].Value);
+            await foreach (var l in this.ReadLinesAsync(solutionPath, cancellationToken).ConfigureAwait(false))
+            {
+                var m = SolutionProjectRegex.Match(l);
+                if (m.Success)
+                    yield return m.Groups[1].Value;
+            }
         }
 
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectDependenciesAsync(string projectPath, bool considerProjectReferences, CancellationToken cancellationToken)
+        private async IAsyncEnumerable<DependencyPackage> ReadProjectDependenciesAsync(string projectPath, bool considerProjectReferences, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            IAsyncEnumerable<DependencyPackage> packages = null;
             var projectDir = this.FileSystem.GetDirectoryName(projectPath);
             var packagesConfigPath = this.FileSystem.Combine(projectDir, "packages.config");
             if (await this.FileSystem.FileExistsAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false))
-                return await ReadPackagesConfigAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false);
+                packages = ReadPackagesConfigAsync(packagesConfigPath, cancellationToken);
 
-            var assetsPath = this.FileSystem.Combine(this.FileSystem.Combine(projectDir, "obj"), "project.assets.json");
-            if (await this.FileSystem.FileExistsAsync(assetsPath, cancellationToken).ConfigureAwait(false))
-                return await ReadProjectAssetsAsync(assetsPath, considerProjectReferences, cancellationToken).ConfigureAwait(false);
-
-            return Enumerable.Empty<DependencyPackage>();
-        }
-
-        private async Task<IEnumerable<DependencyPackage>> ReadPackagesConfigAsync(string packagesConfigPath, CancellationToken cancellationToken)
-        {
-            var xdoc = XDocument.Load(await this.FileSystem.OpenReadAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false));
-            return enumeratePackages(xdoc);
-
-            static IEnumerable<DependencyPackage> enumeratePackages(XDocument xdoc)
+            if (packages == null)
             {
-                var packages = xdoc.Element("packages")?.Elements("package");
-                if (packages == null)
-                    yield break;
+                var assetsPath = this.FileSystem.Combine(this.FileSystem.Combine(projectDir, "obj"), "project.assets.json");
+                if (await this.FileSystem.FileExistsAsync(assetsPath, cancellationToken).ConfigureAwait(false))
+                    packages = ReadProjectAssetsAsync(assetsPath, considerProjectReferences, cancellationToken);
+            }
 
-                foreach (var p in packages)
-                {
-                    yield return new DependencyPackage
-                    {
-                        Name = (string)p.Attribute("id"),
-                        Version = (string)p.Attribute("version")
-                    };
-                }
+            if (packages != null)
+            {
+                await foreach (var p in packages)
+                    yield return p;
             }
         }
 
-#if !NET452
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, bool considerProjectReferences, CancellationToken cancellationToken)
+        private async IAsyncEnumerable<DependencyPackage> ReadPackagesConfigAsync(string packagesConfigPath, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            JsonDocument jdoc;
-            using (var stream = await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false))
-            {
-                jdoc = JsonDocument.Parse(stream);
-            }
+            using var stream = await this.FileSystem.OpenReadAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false);
+            var xdoc = XDocument.Load(stream);
 
-            return enumeratePackages(jdoc, considerProjectReferences);
+            var packages = xdoc.Element("packages")?.Elements("package");
+            if (packages == null)
+                yield break;
 
-            static IEnumerable<DependencyPackage> enumeratePackages(JsonDocument jdoc, bool considerProjectReferences)
+            foreach (var p in packages)
             {
-                var libraries = jdoc.RootElement.GetProperty("libraries");
-                if (libraries.ValueKind == JsonValueKind.Object)
+                yield return new DependencyPackage
                 {
-                    foreach (var library in libraries.EnumerateObject())
+                    Name = (string)p.Attribute("id"),
+                    Version = (string)p.Attribute("version")
+                };
+            }
+        }
+
+        private async IAsyncEnumerable<DependencyPackage> ReadProjectAssetsAsync(string projectAssetsPath, bool considerProjectReferences, [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            using var stream = await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false);
+            using var jdoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var libraries = jdoc.RootElement.GetProperty("libraries");
+            if (libraries.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var library in libraries.EnumerateObject())
+                {
+                    if (library.Value.GetProperty("type").ValueEquals("package") || (library.Value.GetProperty("type").ValueEquals("project") && considerProjectReferences))
                     {
-                        if (library.Value.GetProperty("type").ValueEquals("package") || (library.Value.GetProperty("type").ValueEquals("project") && considerProjectReferences))
+                        var parts = library.Name.Split(new[] { '/' }, 2);
+
+                        yield return new DependencyPackage
                         {
-                            var parts = library.Name.Split(new[] { '/' }, 2);
-
-                            yield return new DependencyPackage
-                            {
-                                Name = parts[0],
-                                Version = parts[1]
-                            };
-                        }
+                            Name = parts[0],
+                            Version = parts[1]
+                        };
                     }
                 }
             }
         }
-#else
-        private async Task<IEnumerable<DependencyPackage>> ReadProjectAssetsAsync(string projectAssetsPath, bool considerProjectReferences, CancellationToken cancellationToken)
-        {
-            JObject jdoc;
-            using (var reader = new JsonTextReader(new StreamReader(await this.FileSystem.OpenReadAsync(projectAssetsPath, cancellationToken).ConfigureAwait(false), Encoding.UTF8)))
-            {
-                jdoc = JObject.Load(reader);
-            }
-
-            return enumeratePackages(jdoc, considerProjectReferences);
-
-            static IEnumerable<DependencyPackage> enumeratePackages(JObject jdoc, bool considerProjectReferences)
-            {
-                if (jdoc["libraries"] is JObject libraries)
-                {
-                    foreach (var library in libraries.Properties())
-                    {
-                        if ((string)((JObject)library.Value).Property("type") == "package" || ((string)((JObject)library.Value).Property("type") == "project" && considerProjectReferences))
-                        {
-                            var parts = library.Name.Split(new[] { '/' }, 2);
-    
-                            yield return new DependencyPackage
-                            {
-                                Name = parts[0],
-                                Version = parts[1]
-                            };
-                        }
-                    }
-                }
-            }
-        }
-#endif
     }
 }
