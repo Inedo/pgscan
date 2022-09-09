@@ -134,38 +134,12 @@ namespace Inedo.DependencyScan
             args.Named.TryGetValue("consumer-package-group", out var consumerGroup);
             args.Named.TryGetValue("api-key", out var apiKey);
 
-            string consumerVersion = null;
-            string consumerName = null;
-
-            // try to get consumerName and consumerVersion from file (e.g. a build result like a DLL or EXE file)
-            if (args.Named.TryGetValue("consumer-package-file", out var consumerVersionFile) && File.Exists(consumerVersionFile))
-            {
-                try
-                {
-                    var vi = FileVersionInfo.GetVersionInfo(consumerVersionFile);
-                    consumerVersion = vi.FileVersion ?? vi.ProductVersion;
-                    consumerName = vi.ProductName;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-
-            }
-
-            if (consumerVersion == null)
-                consumerVersion = args.GetRequiredNamed("consumer-package-version");
-            else if (args.Named.TryGetValue("consumer-package-version", out var consumerPackageVersion))
-            {
-                // a provided consumer-package-version overrides a version extracted from a file
-                consumerVersion = consumerPackageVersion;
-            }
-
-            if (args.Named.TryGetValue("consumer-package-name", out var consumerPackageName))
-            {
-                // a provided consumer-package-name overrides a name extracted from a file
-                consumerName = consumerPackageName;
-            }
+            // take product name and version either from a given file of from explicitly given parameters
+            args.Named.TryGetValue("consumer-package-name", out var consumerName);
+            args.Named.TryGetValue("consumer-package-version", out var consumerVersion);
+            TryGetFileInfo(args, "consumer-package-file", ref consumerName, ref consumerVersion);
+            if (consumerName == null)
+                throw new PgScanException("Missing required argument --consumer-package-name=<name>");
 
             string consumerFeed = null;
             string consumerUrl = null;
@@ -252,11 +226,44 @@ namespace Inedo.DependencyScan
             Console.WriteLine("Dependencies published!");
         }
 
+        /// <summary>
+        /// try to get product/consumer name and version from file (e.g. a build result like a DLL or EXE file)
+        /// </summary>
+        /// <param name="args"></param>
+        /// <param name="fileInfoParamter"></param>
+        /// <param name="productName">provided name takes precedence over name read from file</param>
+        /// <param name="productVersion">provided version takes precedence over version read from file</param>
+        private static void TryGetFileInfo(ArgList args, string fileInfoParamter, ref string productName, ref string productVersion)
+        {
+            if (args.Named.TryGetValue(fileInfoParamter, out var consumerVersionFile) && File.Exists(consumerVersionFile))
+            {
+                try
+                {
+                    var fvi = FileVersionInfo.GetVersionInfo(consumerVersionFile);
+
+                    // use product name from file if name has been not provided explicitly
+                    productName ??= fvi.ProductName;
+
+                    // use file version or product version from file if version has not been provided explicitly
+                    productVersion ??= fvi.FileVersion ?? fvi.ProductVersion;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+            }
+        }
+
         private static async Task CreateBom(ArgList args)
         {
             if (!args.Named.TryGetValue("input", out var inputFileName))
                 throw new PgScanException("Missing required argument --input=<input file name>");
-            if (!args.Named.TryGetValue("project-name", out var consumerName))
+
+            // take product name and version either from a given file of from explicitly given parameters
+            args.Named.TryGetValue("project-name", out var consumerName);
+            args.Named.TryGetValue("version", out var consumerVersion);
+            TryGetFileInfo(args, "file-info", ref consumerName, ref consumerVersion);
+            if (consumerName == null)
                 throw new PgScanException("Missing required argument --project-name=<name>");
 
             args.Named.TryGetValue("type", out var typeName);
@@ -269,8 +276,6 @@ namespace Inedo.DependencyScan
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync();
-
-            args.Named.TryGetValue("version", out var consumerVersion);
 
             args.Named.TryGetValue("project-type", out var consumerType);
             consumerType ??= "library";
@@ -339,6 +344,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --input=<source file name>");
                     Console.WriteLine("  --project-name=<name>");
                     Console.WriteLine("  --version=<version>");
+                    Console.WriteLine("  --file-info=<name of file to read product name and version from (e.g. a dll or exe)>");
                     Console.WriteLine("  --project-type=<library/application>");
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
@@ -360,7 +366,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --consumer-package-name=<name>");
                     Console.WriteLine("  --consumer-package-version=<version>");
                     Console.WriteLine("  --consumer-package-group=<group>");
-                    Console.WriteLine("  --consumer-package-file=<file name to read package name and version from (e.g. a dll or exe)>");
+                    Console.WriteLine("  --consumer-package-file=<name of file to read package name and version from (e.g. a dll or exe)>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
                     Console.WriteLine();
