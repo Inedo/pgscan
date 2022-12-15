@@ -27,8 +27,21 @@ namespace Inedo.DependencyScan
 
             foreach (var d in dependencies.EnumerateObject())
             {
+                string name = d.Name;
                 var version = d.Value.GetProperty("version").GetString();
-                yield return new DependencyPackage { Name = d.Name, Version = version };
+
+                // Check for npm package alias of format 'npm:package-name@package-version'
+                if (version.StartsWith("npm:", System.StringComparison.OrdinalIgnoreCase) && version.Contains("@"))
+                {
+                    // If a npm package alias is used the information about the package is stored in the version-property
+                    // The package name starts after 'npm:' and ends at the last occurence of '@'
+                    // The package version comes after the last occurence of '@'
+                    var separator = version.LastIndexOf('@');
+                    name = version.Substring(0, separator).Remove(0, 4);
+                    version = version.Substring(separator + 1);
+                }
+
+                yield return new DependencyPackage { Name = name, Version = version };
             }
         }
     }
