@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
@@ -90,7 +89,11 @@ namespace Inedo.DependencyScan
                 JsonSerializer.Serialize(
                     requestStream,
                     new DependentPackage(package, feed, consumer, comments),
+#if NET6_0_OR_GREATER
+                    JsonContext.Default.DependentPackage
+#else
                     new JsonSerializerOptions { IgnoreNullValues = true }
+#endif
                 );
             }
 
@@ -127,7 +130,11 @@ namespace Inedo.DependencyScan
                 JsonSerializer.Serialize(
                     requestStream,
                     packages.Select(p => new DependentPackage(p, feed, consumer, comments)),
+#if NET6_0_OR_GREATER
+                    JsonContext.Default.IEnumerableDependentPackage
+#else
                     new JsonSerializerOptions { IgnoreNullValues = true }
+#endif
                 );
             }
 
@@ -145,41 +152,6 @@ namespace Inedo.DependencyScan
                 else
                     throw new InvalidOperationException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}") { Data = { ["message"] = true } };
             }
-        }
-
-        private sealed class DependentPackage
-        {
-            private readonly DependencyPackage p;
-            private readonly PackageConsumer c;
-
-            public DependentPackage(DependencyPackage p, string feed, PackageConsumer consumer, string comments)
-            {
-                this.p = p;
-                this.c = consumer;
-                this.FeedName = feed;
-                this.Comments = comments;
-            }
-
-            [JsonPropertyName("feed")]
-            public string FeedName { get; }
-            [JsonPropertyName("packageName")]
-            public string PackageName => this.p.Name;
-            [JsonPropertyName("groupName")]
-            public string PackageGroup => this.p.Group ?? string.Empty;
-            [JsonPropertyName("version")]
-            public string Version => this.p.Version;
-            [JsonPropertyName("dependentPackageName")]
-            public string DependentPackageName => this.c.Name;
-            [JsonPropertyName("dependentGroupName")]
-            public string DependentPackageGroup => this.c.Group ?? string.Empty;
-            [JsonPropertyName("dependentVersion")]
-            public string DependentPackageVersion => this.c.Version;
-            [JsonPropertyName("dependentFeed")]
-            public string DependentPackageFeed => this.c.Feed;
-            [JsonPropertyName("dependentUrl")]
-            public object DependentPackageUrl => this.c.Url;
-            [JsonPropertyName("comments")]
-            public string Comments { get; }
         }
     }
 }

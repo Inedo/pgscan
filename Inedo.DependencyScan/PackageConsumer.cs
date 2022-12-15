@@ -15,62 +15,22 @@
         /// <summary>
         /// Gets or sets the consuming package name.
         /// </summary>
-        public string Name
-        {
-            get;
-#if !NETCOREAPP
-            set;
-#else
-            init;
-#endif
-        }
+        public string Name { get; set; }
         /// <summary>
         /// Gets or sets the consuming package group if applicable.
         /// </summary>
-        public string Group
-        {
-            get;
-#if !NETCOREAPP
-            set;
-#else
-            init;
-#endif
-        }
+        public string Group { get; set; }
         /// <summary>
         /// Gets or sets the consuming package version.
         /// </summary>
-        public string Version
-        {
-            get;
-#if !NETCOREAPP
-            set;
-#else
-            init;
-#endif
-        }
+        public string Version { get; set; }
         /// <summary>
         /// Gets or sets the consuming package feed.
         /// </summary>
-        public string Feed
-        {
-            get;
-#if !NETCOREAPP
-            set;
-#else
-            init;
-#endif
-        }
+        public string Feed { get; set; }
         /// <summary>
         /// Gets or sets the consuming package URL.
         /// </summary>
-        public string Url
-        {
-            get;
-#if !NETCOREAPP
-            set;
-#else
-            init;
-#endif
-        }
+        public string Url { get; set; }
     }
 }
