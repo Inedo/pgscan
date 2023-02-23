@@ -270,8 +270,16 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
+            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
+            if (!string.IsNullOrEmpty(considerProjectReferences))
+                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
+
+            args.Named.TryGetValue("append-dependencies", out var appendDependencies);
+            if (!string.IsNullOrEmpty(appendDependencies))
+                throw new PgScanException("Supplying a value for option --append-dependencies is not allowed.");
+
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync();
+            var projects = await scanner.ResolveDependenciesAsync(args.Named.ContainsKey("consider-project-references"));
 
             args.Named.TryGetValue("project-type", out var consumerType);
             consumerType ??= "library";
@@ -287,7 +295,8 @@ namespace Inedo.DependencyScan
                     new PackageConsumer { Name = consumerName, Version = consumerVersion },
                     consumerType,
                     scanner.Type.ToString().ToLowerInvariant(),
-                    apiKey
+                    apiKey,
+                    args.Named.ContainsKey("append-dependencies")
                 );
             }
             else
@@ -345,6 +354,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine("  --append-dependencies (append dependencies to an existing release if exists)");
                     Console.WriteLine();
                     break;
 

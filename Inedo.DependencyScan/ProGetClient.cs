@@ -38,9 +38,9 @@ namespace Inedo.DependencyScan
             if (remainingPackages.Count > 0)
                 await this.RecordPackageDependenciesInternalAsync(remainingPackages, feed, consumer, apiKey, comments).ConfigureAwait(false);
         }
-        public async Task PublishSbomAsync(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, string apiKey)
+        public async Task PublishSbomAsync(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, string apiKey, bool overwriteRelease = false)
         {
-            var request = WebRequest.CreateHttp(this.BaseUrl + "/api/sca/import");
+            var request = WebRequest.CreateHttp(this.BaseUrl + "/api/sca/import" + (overwriteRelease ? "?overwrite=true" : string.Empty));
             request.Method = "POST";
             request.ContentType = "text/xml";
             request.UseDefaultCredentials = true;
