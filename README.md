@@ -24,7 +24,7 @@ dotnet tool install pgscan
 Execute `pgscan` with the `identify` command. For example, to generate an SBOM and submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet:
 
 ```Batchfile
-pgscan identify --input=MyLibrary.csproj --proget-url=https://proget.local --consumer-package-version=1.0.0
+pgscan identify --input=MyLibrary.csproj --proget-url=https://proget.local --version=1.0.0
 ```
 
 
