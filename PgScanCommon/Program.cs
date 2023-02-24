@@ -274,10 +274,6 @@ namespace Inedo.DependencyScan
             if (!string.IsNullOrEmpty(considerProjectReferences))
                 throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
 
-            args.Named.TryGetValue("append-dependencies", out var appendDependencies);
-            if (!string.IsNullOrEmpty(appendDependencies))
-                throw new PgScanException("Supplying a value for option --append-dependencies is not allowed.");
-
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
             var projects = await scanner.ResolveDependenciesAsync(args.Named.ContainsKey("consider-project-references"));
 
@@ -295,8 +291,7 @@ namespace Inedo.DependencyScan
                     new PackageConsumer { Name = consumerName, Version = consumerVersion },
                     consumerType,
                     scanner.Type.ToString().ToLowerInvariant(),
-                    apiKey,
-                    args.Named.ContainsKey("append-dependencies")
+                    apiKey
                 );
             }
             else
@@ -354,7 +349,6 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
-                    Console.WriteLine("  --append-dependencies (append dependencies to an existing release if exists)");
                     Console.WriteLine();
                     break;
 
