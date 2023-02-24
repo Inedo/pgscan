@@ -43,7 +43,12 @@ namespace Inedo.DependencyScan
                         packages = await ReadProjectDependenciesAsync(projectPath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false);
                     }
 
-                    projects.Add(new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(p), packages));
+                    projects.Add(
+                        new ScannedProject(
+                            this.FileSystem.GetFileNameWithoutExtension(p), 
+                            packages.Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(projectPath), cancellationToken).ToListAsync().ConfigureAwait(false))
+                        )
+                    );
                 }
 
                 return projects;
@@ -52,9 +57,15 @@ namespace Inedo.DependencyScan
             {
                 return new[]
                 {
-                    new ScannedProject(this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false))
+                    new ScannedProject(
+                        this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), 
+                        (await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false))
+                            .Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(this.SourcePath), cancellationToken).ToListAsync().ConfigureAwait(false))
+                    )
                 };
             }
+
+            
         }
 
         private async IAsyncEnumerable<string> ReadProjectsFromSolutionAsync(string solutionPath, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -113,7 +124,23 @@ namespace Inedo.DependencyScan
                 await foreach (var p in packages.ConfigureAwait(false))
                     yield return p;
             }
+
+            
         }
+
+        private async IAsyncEnumerable<DependencyPackage> FindNpmPackagesAsync(string projectPath, [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await foreach(var npmProjectFile in this.FileSystem.FindFilesAsync(projectPath, "package-lock.json", true, cancellationToken))
+            {
+                var npmScanner = DependencyScanner.GetScanner(npmProjectFile.FullName, DependencyScannerType.Npm, this.FileSystem);
+                foreach(var npmProject in await npmScanner.ResolveDependenciesAsync(cancellationToken: cancellationToken))
+                {
+                    foreach(var npmDependency in npmProject.Dependencies)
+                        yield return npmDependency;
+                }
+            }
+        }
+
         private async IAsyncEnumerable<DependencyPackage> ReadPackagesConfigAsync(string packagesConfigPath, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             using var stream = await this.FileSystem.OpenReadAsync(packagesConfigPath, cancellationToken).ConfigureAwait(false);
@@ -128,7 +155,8 @@ namespace Inedo.DependencyScan
                 yield return new DependencyPackage
                 {
                     Name = (string)p.Attribute("id"),
-                    Version = (string)p.Attribute("version")
+                    Version = (string)p.Attribute("version"),
+                    Type = "nuget"
                 };
             }
         }
@@ -149,7 +177,8 @@ namespace Inedo.DependencyScan
                         yield return new DependencyPackage
                         {
                             Name = parts[0],
-                            Version = parts[1]
+                            Version = parts[1],
+                            Type = "nuget"
                         };
                     }
                 }
@@ -209,7 +238,8 @@ namespace Inedo.DependencyScan
                                 new DependencyPackage
                                 {
                                     Name = parts[0],
-                                    Version = parts[1]
+                                    Version = parts[1],
+                                    Type = "nuget"
                                 }
                             );
                         }

@@ -55,7 +55,7 @@ namespace Inedo.DependencyScan
                 foreach (var p in projects)
                 {
                     foreach (var d in p.Dependencies)
-                        bomWriter.AddPackage(d.Group, d.Name, d.Version, packageType);
+                        bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
                 }
             }
 

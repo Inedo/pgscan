@@ -41,7 +41,7 @@ namespace Inedo.DependencyScan
                     version = version.Substring(separator + 1);
                 }
 
-                yield return new DependencyPackage { Name = name, Version = version };
+                yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
             }
         }
     }
