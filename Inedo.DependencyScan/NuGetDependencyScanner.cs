@@ -49,7 +49,7 @@ namespace Inedo.DependencyScan
                             this.FileSystem.GetFileNameWithoutExtension(p),
                             packages
                         )
-                    ); ;
+                    );
                 }
 
                 return projects;

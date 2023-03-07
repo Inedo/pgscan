@@ -262,7 +262,7 @@ namespace Inedo.DependencyScan
             if (consumerName == null)
                 throw new PgScanException("Missing required argument --project-name=<name>");
 
-            var isAutoType = args.Named.TryGetValue("type", out var typeName) ? typeName == null : true;
+            var isAutoType = !args.Named.TryGetValue("type", out var typeName) || typeName == null;
             typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
