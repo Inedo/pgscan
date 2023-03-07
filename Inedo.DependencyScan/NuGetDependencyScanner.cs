@@ -17,7 +17,7 @@ namespace Inedo.DependencyScan
 
         public override DependencyScannerType Type => DependencyScannerType.NuGet;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default)
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, bool scanForChildNpmDependencies = true, CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
@@ -42,25 +42,30 @@ namespace Inedo.DependencyScan
                     {
                         packages = await ReadProjectDependenciesAsync(projectPath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false);
                     }
-
+                    if (scanForChildNpmDependencies)
+                        packages = packages.Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(projectPath), cancellationToken).ToListAsync().ConfigureAwait(false));
                     projects.Add(
                         new ScannedProject(
-                            this.FileSystem.GetFileNameWithoutExtension(p), 
-                            packages.Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(projectPath), cancellationToken).ToListAsync().ConfigureAwait(false))
+                            this.FileSystem.GetFileNameWithoutExtension(p),
+                            packages
                         )
-                    );
+                    ); ;
                 }
 
                 return projects;
             }
             else
             {
+                var packages = await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false);
+
+                if (scanForChildNpmDependencies)
+                    packages = packages.Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(this.SourcePath), cancellationToken).ToListAsync().ConfigureAwait(false)).ToList();
+
                 return new[]
                 {
                     new ScannedProject(
                         this.FileSystem.GetFileNameWithoutExtension(this.SourcePath), 
-                        (await ReadProjectDependenciesAsync(this.SourcePath, considerProjectReferences, cancellationToken).ToListAsync().ConfigureAwait(false))
-                            .Concat(await this.FindNpmPackagesAsync(this.FileSystem.GetDirectoryName(this.SourcePath), cancellationToken).ToListAsync().ConfigureAwait(false))
+                        packages
                     )
                 };
             }

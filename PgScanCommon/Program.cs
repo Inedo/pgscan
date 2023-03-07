@@ -262,7 +262,7 @@ namespace Inedo.DependencyScan
             if (consumerName == null)
                 throw new PgScanException("Missing required argument --project-name=<name>");
 
-            args.Named.TryGetValue("type", out var typeName);
+            var isAutoType = args.Named.TryGetValue("type", out var typeName) ? typeName == null : true;
             typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
                 throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
@@ -275,7 +275,7 @@ namespace Inedo.DependencyScan
                 throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
 
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(args.Named.ContainsKey("consider-project-references"));
+            var projects = await scanner.ResolveDependenciesAsync(args.Named.ContainsKey("consider-project-references"), isAutoType);
 
             args.Named.TryGetValue("project-type", out var consumerType);
             consumerType ??= "library";

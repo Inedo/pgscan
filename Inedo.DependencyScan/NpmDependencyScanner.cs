@@ -9,7 +9,7 @@ namespace Inedo.DependencyScan
     {
         public override DependencyScannerType Type => DependencyScannerType.Npm;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, CancellationToken cancellationToken = default)
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, bool scanForChildNpmDependencies = true, CancellationToken cancellationToken = default)
         {
             var packageLockPath = this.FileSystem.Combine(this.FileSystem.GetDirectoryName(this.SourcePath), "package-lock.json");
 
