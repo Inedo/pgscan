@@ -65,11 +65,14 @@ namespace Inedo.DependencyScan
             return 0;
         }
 
-        private static async Task Report(ArgList args)
+        private static DependencyScanner GetScanner(ArgList args)
         {
+
+            // input filename
             if (!args.Named.TryGetValue("input", out var inputFileName))
                 throw new PgScanException("Missing required argument --input=<input file name>");
 
+            // package type
             args.Named.TryGetValue("type", out var typeName);
             typeName ??= GetImplicitTypeName(inputFileName);
             if (string.IsNullOrWhiteSpace(typeName))
@@ -78,12 +81,21 @@ namespace Inedo.DependencyScan
             if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
                 throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
 
-            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
-            if (!string.IsNullOrEmpty(considerProjectReferences))
-                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
-
+            // get scanner
             var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences is not null);
+            
+            // set args
+            if (scanner is IConfigurableDependencyScanner filterable)
+                filterable.SetArgs(args.Named);
+
+            return scanner;
+        }
+
+        private static async Task Report(ArgList args)
+        {
+            var scanner = GetScanner(args);
+
+            var projects = await scanner.ResolveDependenciesAsync();
             if (projects.Count > 0)
             {
                 foreach (var p in projects)
@@ -103,15 +115,7 @@ namespace Inedo.DependencyScan
 
         private static async Task Publish(ArgList args)
         {
-            var inputFileName = args.GetRequiredNamed("input");
-
-            args.Named.TryGetValue("type", out var typeName);
-            typeName ??= GetImplicitTypeName(inputFileName);
-            if (string.IsNullOrWhiteSpace(typeName))
-                throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
-
-            if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
-                throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
+            var scanner = GetScanner(args);
 
             string[] packageFeeds;
             if (args.Named.TryGetValue("package-feeds", out var packageFeedsCommaSeparated))
@@ -145,12 +149,7 @@ namespace Inedo.DependencyScan
             else
                 consumerFeed = consumerSource;
 
-            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
-            if (!string.IsNullOrEmpty(considerProjectReferences))
-                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
-
-            var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(considerProjectReferences != null);
+            var projects = await scanner.ResolveDependenciesAsync();
 
             if (string.IsNullOrEmpty(consumerName))
             {
@@ -252,8 +251,8 @@ namespace Inedo.DependencyScan
 
         private static async Task CreateBom(ArgList args)
         {
-            if (!args.Named.TryGetValue("input", out var inputFileName))
-                throw new PgScanException("Missing required argument --input=<input file name>");
+            // get scanner
+            var scanner = GetScanner(args);
 
             // take product name and version either from a given file of from explicitly given parameters
             args.Named.TryGetValue("project-name", out var consumerName);
@@ -262,27 +261,18 @@ namespace Inedo.DependencyScan
             if (consumerName == null)
                 throw new PgScanException("Missing required argument --project-name=<name>");
 
-            var isAutoType = !args.Named.TryGetValue("type", out var typeName) || typeName == null;
-            typeName ??= GetImplicitTypeName(inputFileName);
-            if (string.IsNullOrWhiteSpace(typeName))
-                throw new PgScanException("Missing --type argument and could not infer type based on input file name.");
+            // analyze projects
+            var projects = await scanner.ResolveDependenciesAsync();
 
-            if (!Enum.TryParse<DependencyScannerType>(typeName, true, out var type))
-                throw new PgScanException($"Invalid scanner type: {typeName} (must be nuget, npm, or pypi)");
-
-            args.Named.TryGetValue("consider-project-references", out var considerProjectReferences);
-            if (!string.IsNullOrEmpty(considerProjectReferences))
-                throw new PgScanException("Supplying a value for option --consider-project-references is not allowed.");
-
-            var scanner = DependencyScanner.GetScanner(inputFileName, type);
-            var projects = await scanner.ResolveDependenciesAsync(args.Named.ContainsKey("consider-project-references"), isAutoType);
-
+            // get project type
             args.Named.TryGetValue("project-type", out var consumerType);
             consumerType ??= "library";
 
+            // get proget url and api key
             var progetUrl = args.GetRequiredNamed("proget-url");
             args.Named.TryGetValue("api-key", out var apiKey);
 
+            // publish SBOM
             if (projects.Count > 0)
             {
                 var client = new ProGetClient(progetUrl);
@@ -293,6 +283,7 @@ namespace Inedo.DependencyScan
                     scanner.Type.ToString().ToLowerInvariant(),
                     apiKey
                 );
+                Console.WriteLine($"Analyzed {projects.Count} projects, published SBOM for {consumerName} {consumerVersion}.");
             }
             else
             {
@@ -331,6 +322,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --type=<nuget|npm|pypi>");
                     Console.WriteLine("  --input=<source file name>");
+                    Console.WriteLine("  --include-folder=<solution folder or list of solution folders separated by '|'> (nuget packages only)");
                     Console.WriteLine();
                     break;
 
@@ -349,6 +341,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine("  --include-folder=<solution folder or list of solution folders separated by '|'> (nuget packages only)");
                     Console.WriteLine();
                     break;
 
@@ -369,6 +362,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --consumer-package-file=<name of file to read package name and version from (e.g. a dll or exe)>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine("  --include-folder=<solution folder or list of solution folders separated by '|'> (nuget packages only)");
                     Console.WriteLine();
                     break;
 

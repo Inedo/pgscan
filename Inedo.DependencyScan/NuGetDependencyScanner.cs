@@ -11,13 +11,18 @@ using System.Xml.Linq;
 
 namespace Inedo.DependencyScan
 {
-    internal sealed class NuGetDependencyScanner : DependencyScanner
+    internal sealed class NuGetDependencyScanner : DependencyScanner, IConfigurableDependencyScanner
     {
-        private static readonly Regex SolutionProjectRegex = new(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
-
+        private static readonly Regex SolutionProjectRegex = new(@"^Project[^=]*=\s*""[^""]+""\s*,\s*""(?<1>[^""]+)"",\s""(?<2>[^""]+)""", RegexOptions.ExplicitCapture | RegexOptions.Singleline);
+        private static readonly Regex SolutionFolderRegex = new(@"^Project\(""{2150E333-8FDC-42A3-9474-1A3956D46DE8}""\)\s=\s""(?<1>[^""]+)"",\s""(?<2>[^""]+)"",\s""(?<3>[^""]+)""", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline);
+        private static readonly Regex ProjectMappingRegex = new(@"{(?<1>[^}]+)}\s=\s{(?<2>[^}]+)}", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline);
+        private readonly HashSet<string> IncludeFolders = new HashSet<string>();
+        private bool considerProjectReferences = false;
+        private bool scanForChildNpmDependencies = true;
         public override DependencyScannerType Type => DependencyScannerType.NuGet;
 
-        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, bool scanForChildNpmDependencies = true, CancellationToken cancellationToken = default)
+
+        public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
             if (this.SourcePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
@@ -27,7 +32,7 @@ namespace Inedo.DependencyScan
 
                 var assets = await this.FindAllAssetsAsync(solutionRoot, cancellationToken).ConfigureAwait(false);
 
-                await foreach (var p in ReadProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
+                await foreach (var p in ReadFoldersAndProjectsFromSolutionAsync(this.SourcePath, cancellationToken).ConfigureAwait(false))
                 {
                     var projectPath = this.FileSystem.Combine(solutionRoot, p);
                     IEnumerable<DependencyPackage> packages;
@@ -72,6 +77,90 @@ namespace Inedo.DependencyScan
 
             
         }
+
+        public void SetArgs(IReadOnlyDictionary<string, string> namedArguments)
+        {
+            // check if solution folders should be used
+            if (namedArguments.TryGetValue("include-folder", out var folders))
+            {
+                foreach (var folder in folders.Split('|'))
+                    IncludeFolders.Add(folder);
+            }
+
+            // project references
+            considerProjectReferences = namedArguments.TryGetValue("consider-project-references", out var considerProjectReferencesValue);
+            if (!string.IsNullOrEmpty(considerProjectReferencesValue))
+                throw new Exception("Supplying a value for option --consider-project-references is not allowed.");
+
+            // isAutoType
+            scanForChildNpmDependencies = !namedArguments.TryGetValue("type", out var typeName) || typeName == null;
+
+        }
+
+        private async IAsyncEnumerable<string> ReadFoldersAndProjectsFromSolutionAsync(string solutionPath, [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var dictFolders = new Dictionary<Guid, string>();
+            var dictProjects = new Dictionary<Guid, string>();
+            var dictMappings = new Dictionary<Guid, Guid>();
+
+            await foreach (var l in this.ReadLinesAsync(solutionPath, cancellationToken))
+            {
+                var match = SolutionFolderRegex.Match(l);
+                if (match.Success)
+                {
+                    // Solution Folder
+                    dictFolders[new Guid(match.Groups[3].Value)] = match.Groups[1].Value;
+                }
+                else if ((match = SolutionProjectRegex.Match(l)).Success)
+                {
+                    // Project
+                    dictProjects[new Guid(match.Groups[2].Value)] = match.Groups[1].Value;
+                }
+                else if ((match = ProjectMappingRegex.Match(l)).Success)
+                {
+                    // Mappings of projects to solution folders
+                    dictMappings[new Guid(match.Groups[1].Value)] = new Guid(match.Groups[2].Value);
+                }
+            }
+
+            // Get GUIDs of Solutionfolders and Subfolders
+            var IncludeFoldersGuids = new HashSet<Guid>();
+            foreach (var kvp in dictFolders)
+            {
+                var folderGuid = kvp.Key;
+                var list = new List<Guid>();
+
+                // check solution folders recursively
+                while (folderGuid != default(Guid))
+                {
+                    list.Add(folderGuid);
+
+                    // check whether the name of the folder is included in the "include" list
+                    if (dictFolders.TryGetValue(folderGuid, out var folderName) && IncludeFolders.Contains(folderName))
+                    {
+                        foreach (var guid in list)
+                            IncludeFoldersGuids.Add(guid);
+                        break;
+                    }
+
+                    // check whether solution folder is child of a parent folder
+                    if (dictMappings.TryGetValue(folderGuid, out folderGuid) == false)
+                        break;
+                }
+            }
+
+            foreach (var kvp in dictProjects)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
+                if (IncludeFolders.Count == 0 ||
+                    (dictMappings.TryGetValue(kvp.Key, out var folderGuid) // get folder Guid from project Guid
+                    && IncludeFoldersGuids.Contains(folderGuid))) // check if folder is in list of included folders
+                    yield return kvp.Value;
+            }
+        }
+
 
         private async IAsyncEnumerable<string> ReadProjectsFromSolutionAsync(string solutionPath, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
