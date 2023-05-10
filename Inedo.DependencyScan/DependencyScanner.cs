@@ -49,11 +49,9 @@ namespace Inedo.DependencyScan
         /// <summary>
         /// Returns the dependencies used by each project in the specified <see cref="SourcePath"/>.
         /// </summary>
-        /// <param name="considerProjectReferences">Determines if project references are considered as package references or not (only relevant for NuGetDependencyScanner).</param>
-        /// <param name="scanForChildNpmDependencies">Determines if the scanner should look for child package-lock.json files for npm dependencies or not.</param>
         /// <param name="cancellationToken">Cancellation token for asynchronous operation.</param>
         /// <returns>Dependencies used by each project.</returns>
-        public abstract Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(bool considerProjectReferences = false, bool scanForChildNpmDependencies = true, CancellationToken cancellationToken = default);
+        public abstract Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns a <see cref="DependencyScanner"/> for the specified path.
