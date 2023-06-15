@@ -19,7 +19,7 @@ Install the tool using dotnet. For example, to install the tool locally to the c
 dotnet tool install pgscan
 ```
 
-## Usage (CLI/tool with ProGet 2022 or newer)
+## Usage (CLI/tool)
 
 Execute `pgscan` with the `identify` command. For example, to generate an SBOM and submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet:
 
@@ -27,14 +27,7 @@ Execute `pgscan` with the `identify` command. For example, to generate an SBOM a
 pgscan identify --input=MyLibrary.csproj --proget-url=https://proget.local --version=1.0.0
 ```
 
-
-## Usage (CLI/tool with ProGet v6)
-
-Execute `pgscan` with the `publish` command. For example, to submit the dependencies of v1.0.0 the `MyLibrary` project to ProGet's `Libraries` feed:
-
-```Batchfile
-pgscan publish --input=MyLibrary.csproj --package-feed=Libraries --proget-url=https://proget.local --consumer-package-source=Libraries --consumer-package-version=1.0.0
-```
+Note that the `identify` command requires ProGet 2022 and later. If you're using ProGet 6.0, you'll need to use the now-deprecated `publish` command; see the [old version of this README](https://github.com/Inedo/pgscan/blob/8844ef83a44258d944a0c0626e5f234da0533d21/README.md#usage-clitool) to learn how.
 
 
 ## Usage (OtterScript)
