@@ -17,6 +17,8 @@
 		<Version>0.0.0</Version>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <NoWarn>CS1591;SYSLIB0013;SYSLIB0014;SYSLIB0020</NoWarn>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>Inedo.DependencyScan.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 	<ItemGroup>
 	  <PackageReference Include="System.Text.Json" Version="6.0.5" />
