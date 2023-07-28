@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,13 +22,41 @@ namespace Inedo.DependencyScan
 
         private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
         {
-            if (!doc.RootElement.TryGetProperty("dependencies", out var dependencies))
+            if (!doc.RootElement.TryGetProperty("lockfileVersion", out var lockFileVersion))
                 yield break;
 
-            foreach (var d in dependencies.EnumerateObject())
+            var lockFileVersionString = lockFileVersion.ToString();
+
+            JsonElement npmDependencyPackages;
+            if (lockFileVersionString.Equals("3"))
             {
-                string name = d.Name;
-                var version = d.Value.GetProperty("version").GetString();
+                if (!doc.RootElement.TryGetProperty("packages", out npmDependencyPackages))
+                    yield break;
+            }
+            else 
+            {
+                if (!doc.RootElement.TryGetProperty("dependencies", out npmDependencyPackages))
+                    yield break;
+            }
+
+            foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
+            {
+                string name = string.Empty;
+                if (lockFileVersionString.Equals("3"))
+                {
+                    // skip the self reference package
+                    if (npmDependencyPackage.Name.Equals(string.Empty))
+                        continue;
+
+                    // drop node_modules/ prepended string
+                    name = npmDependencyPackage.Name.Replace("node_modules/", string.Empty);
+                }
+                else
+                {
+                    name = npmDependencyPackage.Name;
+                }
+
+                string version = npmDependencyPackage.Value.GetProperty("version").GetString();
 
                 // Check for npm package alias of format 'npm:package-name@package-version'
                 if (version.StartsWith("npm:", System.StringComparison.OrdinalIgnoreCase) && version.Contains("@"))
