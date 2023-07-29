@@ -49,14 +49,7 @@ namespace Inedo.DependencyScan
 
             using (var requestStream = await request.GetRequestStreamAsync().ConfigureAwait(false))
             {
-                using var bomWriter = new BomWriter(requestStream);
-                bomWriter.Begin(consumer.Group, consumer.Name, consumer.Version, consumerType);
-
-                foreach (var p in projects)
-                {
-                    foreach (var d in p.Dependencies)
-                        bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
-                }
+                WriteSbomToStream(projects, consumer, consumerType, packageType, requestStream);
             }
 
             try
@@ -72,6 +65,26 @@ namespace Inedo.DependencyScan
                     throw new InvalidOperationException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}: {new string(message, 0, length)}") { Data = { ["message"] = true } };
                 else
                     throw new InvalidOperationException($"Server responded with {(int)response.StatusCode} {response.StatusDescription}") { Data = { ["message"] = true } };
+            }
+        }
+
+        public async Task PublishSbomToFileAsync(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, string filename)
+        {
+            using (var filestream = File.OpenWrite(filename))
+            {
+                 WriteSbomToStream(projects, consumer, consumerType, packageType, filestream);
+            }
+        }
+
+        private static void WriteSbomToStream(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, Stream stream)
+        {
+            using var bomWriter = new BomWriter(stream);
+            bomWriter.Begin(consumer.Group, consumer.Name, consumer.Version, consumerType);
+
+            foreach (var p in projects)
+            {
+                foreach (var d in p.Dependencies)
+                    bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
             }
         }
 

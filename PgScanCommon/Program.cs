@@ -282,17 +282,28 @@ namespace Inedo.DependencyScan
 
             var progetUrl = args.GetRequiredNamed("proget-url");
             args.Named.TryGetValue("api-key", out var apiKey);
+            args.Named.TryGetValue("output-file", out var outputFile);
 
             if (projects.Count > 0)
             {
                 var client = new ProGetClient(progetUrl);
-                await client.PublishSbomAsync(
-                    projects,
-                    new PackageConsumer { Name = consumerName, Version = consumerVersion },
-                    consumerType,
-                    scanner.Type.ToString().ToLowerInvariant(),
-                    apiKey
-                );
+
+                if (string.IsNullOrEmpty(outputFile))
+                    await client.PublishSbomAsync(
+                        projects,
+                        new PackageConsumer { Name = consumerName, Version = consumerVersion },
+                        consumerType,
+                        scanner.Type.ToString().ToLowerInvariant(),
+                        apiKey
+                    );
+                else
+                    await client.PublishSbomToFileAsync(
+                        projects,
+                        new PackageConsumer { Name = consumerName, Version = consumerVersion },
+                        consumerType,
+                        scanner.Type.ToString().ToLowerInvariant(),
+                        outputFile
+                    );
             }
             else
             {
@@ -337,7 +348,7 @@ namespace Inedo.DependencyScan
                 case "identify":
                     Console.WriteLine("Usage: pgscan identify [options...]");
                     Console.WriteLine();
-                    Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet.");
+                    Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet. Requires ProGet 2022 or later.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --type=<nuget|npm|pypi>");
@@ -349,6 +360,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --proget-url=<ProGet base URL>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine("  --output-file=<file name> (For debugging: Writes sbom to local file instead of sending it to ProGet)");
                     Console.WriteLine();
                     break;
 
@@ -356,6 +368,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Usage: pgscan publish [options...]");
                     Console.WriteLine();
                     Console.WriteLine("Publish project dependency data to ProGet.");
+                    Console.WriteLine("Note: This option is deprecated. Use 'identify' instead.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
                     Console.WriteLine("  --type=<nuget|npm|pypi>");
