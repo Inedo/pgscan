@@ -17,7 +17,7 @@ namespace Inedo.DependencyScan
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var projectName = doc.RootElement.GetProperty("name").GetString();
-            return new[] { new ScannedProject(projectName, ReadDependencies(doc)) };
+            return new[] { new ScannedProject(projectName, ReadDependencies(doc).Distinct()) };
         }
 
         private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
