@@ -22,39 +22,24 @@ namespace Inedo.DependencyScan
 
         private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
         {
-            if (!doc.RootElement.TryGetProperty("lockfileVersion", out var lockFileVersion))
-                yield break;
-
-            var lockFileVersionString = lockFileVersion.ToString();
-
-            JsonElement npmDependencyPackages;
-            if (lockFileVersionString.Equals("3"))
-            {
-                if (!doc.RootElement.TryGetProperty("packages", out npmDependencyPackages))
-                    yield break;
-            }
-            else 
-            {
+            if (!doc.RootElement.TryGetProperty("packages", out var npmDependencyPackages))
                 if (!doc.RootElement.TryGetProperty("dependencies", out npmDependencyPackages))
                     yield break;
-            }
 
             foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
             {
-                string name = string.Empty;
-                if (lockFileVersionString.Equals("3"))
-                {
-                    // skip the self reference package
-                    if (npmDependencyPackage.Name.Equals(string.Empty))
-                        continue;
+                // skip the self reference package
+                if (npmDependencyPackage.Name.Equals(string.Empty))
+                    continue;
 
-                    // drop node_modules/ prepended string
-                    name = npmDependencyPackage.Name.Replace("node_modules/", string.Empty);
-                }
-                else
-                {
+                string name;
+                // drop the pre-pended paths, if they exist, to get the name of the package by itself
+                var lidx = npmDependencyPackage.Name.LastIndexOf("node_modules/") + 13;
+                if (lidx < 13 || lidx >= npmDependencyPackage.Name.Length)
                     name = npmDependencyPackage.Name;
-                }
+                else
+                    name = npmDependencyPackage.Name.Substring(lidx);
+
 
                 string version = npmDependencyPackage.Value.GetProperty("version").GetString();
 
@@ -71,6 +56,7 @@ namespace Inedo.DependencyScan
 
                 yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
             }
+        }
         }
     }
 }
