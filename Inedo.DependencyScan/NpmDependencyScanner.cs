@@ -57,6 +57,5 @@ namespace Inedo.DependencyScan
                 yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
             }
         }
-        }
     }
 }
