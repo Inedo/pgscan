@@ -68,12 +68,11 @@ namespace Inedo.DependencyScan
             }
         }
 
-        public async Task PublishSbomToFileAsync(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, string filename)
+        public Task PublishSbomToFileAsync(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, string filename)
         {
-            using (var filestream = File.OpenWrite(filename))
-            {
-                 WriteSbomToStream(projects, consumer, consumerType, packageType, filestream);
-            }
+            using var filestream = File.OpenWrite(filename);
+            WriteSbomToStream(projects, consumer, consumerType, packageType, filestream);
+            return Task.CompletedTask;
         }
 
         private static void WriteSbomToStream(IEnumerable<ScannedProject> projects, PackageConsumer consumer, string consumerType, string packageType, Stream stream)
