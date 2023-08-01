@@ -17,9 +17,13 @@
 		<PackageProjectUrl>https://github.com/Inedo/pgscan</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/Inedo/pgscan.git</RepositoryUrl>
     <NoWarn>SYSLIB0013;SYSLIB0014</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Inedo.DependencyScan\Inedo.DependencyScan.csproj" />
 	</ItemGroup>
 	<Import Project="..\PgScanCommon\PgScanCommon.projitems" Label="Shared" />
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 </Project>
