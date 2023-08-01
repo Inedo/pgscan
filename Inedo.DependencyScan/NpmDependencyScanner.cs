@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,18 +17,31 @@ namespace Inedo.DependencyScan
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var projectName = doc.RootElement.GetProperty("name").GetString();
-            return new[] { new ScannedProject(projectName, ReadDependencies(doc)) };
+            return new[] { new ScannedProject(projectName, ReadDependencies(doc).Distinct()) };
         }
 
         private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
         {
-            if (!doc.RootElement.TryGetProperty("dependencies", out var dependencies))
-                yield break;
+            if (!doc.RootElement.TryGetProperty("packages", out var npmDependencyPackages))
+                if (!doc.RootElement.TryGetProperty("dependencies", out npmDependencyPackages))
+                    yield break;
 
-            foreach (var d in dependencies.EnumerateObject())
+            foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
             {
-                string name = d.Name;
-                var version = d.Value.GetProperty("version").GetString();
+                // skip the self reference package
+                if (npmDependencyPackage.Name.Equals(string.Empty))
+                    continue;
+
+                string name;
+                // drop the pre-pended paths, if they exist, to get the name of the package by itself
+                var lidx = npmDependencyPackage.Name.LastIndexOf("node_modules/") + 13;
+                if (lidx < 13 || lidx >= npmDependencyPackage.Name.Length)
+                    name = npmDependencyPackage.Name;
+                else
+                    name = npmDependencyPackage.Name.Substring(lidx);
+
+
+                string version = npmDependencyPackage.Value.GetProperty("version").GetString();
 
                 // Check for npm package alias of format 'npm:package-name@package-version'
                 if (version.StartsWith("npm:", System.StringComparison.OrdinalIgnoreCase) && version.Contains("@"))
