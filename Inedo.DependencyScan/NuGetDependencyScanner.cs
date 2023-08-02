@@ -93,7 +93,7 @@ namespace Inedo.DependencyScan
                 throw new Exception("Supplying a value for option --consider-project-references is not allowed.");
 
             // isAutoType
-            scanForChildNpmDependencies = !namedArguments.TryGetValue("type", out var typeName) || typeName == null;
+            scanForChildNpmDependencies = !namedArguments.TryGetValue("type", out var typeName) || typeName == null || typeName.Equals("auto", StringComparison.OrdinalIgnoreCase);
 
         }
 
