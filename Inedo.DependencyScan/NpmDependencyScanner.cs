@@ -18,15 +18,26 @@ namespace Inedo.DependencyScan
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var projectName = doc.RootElement.GetProperty("name").GetString();
-            return new[] { new ScannedProject(projectName, ReadDependencies(doc).Distinct()) };
+            return new[] { new ScannedProject(projectName, ReadPackageLockFile(doc).Distinct()) };
         }
 
-        private static IEnumerable<DependencyPackage> ReadDependencies(JsonDocument doc)
+        private static IEnumerable<DependencyPackage> ReadPackageLockFile(JsonDocument doc)
         {
-            if (!doc.RootElement.TryGetProperty("packages", out var npmDependencyPackages))
-                if (!doc.RootElement.TryGetProperty("dependencies", out npmDependencyPackages))
-                    yield break;
+            // works for file format version 2 & 3 (and probably later versions as well)
+            if (doc.RootElement.TryGetProperty("packages", out var npmDependencyPackages))
+                return ReadPackages(npmDependencyPackages);
 
+            // legacy implementation for file format versions 1 & 2
+            return ReadDependencies(doc.RootElement);
+        }
+
+        /// <summary>
+        /// Read package-lock.json file format 2 and 3
+        /// </summary>
+        /// <param name="npmDependencyPackages"></param>
+        /// <returns></returns>
+        private static IEnumerable<DependencyPackage> ReadPackages(JsonElement npmDependencyPackages)
+        {
             foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
             {
                 // skip the self reference package
@@ -41,6 +52,40 @@ namespace Inedo.DependencyScan
                 else
                     name = npmDependencyPackage.Name.Substring(lidx);
 
+                // check for package alias
+                if (npmDependencyPackage.Value.TryGetProperty("name", out var alias) && alias.ValueKind == JsonValueKind.String)
+                    name = alias.GetString();
+
+                string version = npmDependencyPackage.Value.GetProperty("version").GetString();
+
+                // return dependency
+                yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
+            }
+
+        }
+
+        /// <summary>
+        /// Read package-lock.json file format 1 (and 2, which is backwards-compatible to 1)
+        /// </summary>
+        /// <param name="doc"></param>
+        /// <returns></returns>
+        private static IEnumerable<DependencyPackage> ReadDependencies(JsonElement doc)
+        {
+            // for recursive calls: if for any reason npmDependencyPackage.Value is a primitive type instead of an object, yield nothing
+            if (doc.ValueKind != JsonValueKind.Object)
+                yield break;
+
+            // get "dependencies" property
+            if (!doc.TryGetProperty("dependencies", out var npmDependencyPackages))
+                    yield break;
+
+            foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
+            {
+                // skip the self reference package
+                if (npmDependencyPackage.Name.Equals(string.Empty))
+                    continue;
+
+                string name = npmDependencyPackage.Name;
 
                 string version = npmDependencyPackage.Value.GetProperty("version").GetString();
 
@@ -55,7 +100,12 @@ namespace Inedo.DependencyScan
                     version = version.Substring(separator + 1);
                 }
 
+                // return dependency
                 yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
+
+                // check for sub-dependencies recursively
+                foreach (var subDependency in ReadDependencies(npmDependencyPackage.Value))
+                    yield return subDependency;
             }
         }
     }
