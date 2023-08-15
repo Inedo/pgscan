@@ -80,10 +80,15 @@ namespace Inedo.DependencyScan
             using var bomWriter = new BomWriter(stream);
             bomWriter.Begin(consumer.Group, consumer.Name, consumer.Version, consumerType);
 
-            foreach (var p in projects)
+            // Iterate through depencies. Calling Distinct() eliminates duplictes.
+            // Ordering by group/name/version makes it easier to compare different sbom files.
+            foreach (var d in (projects.SelectMany(p => p.Dependencies))
+                .Distinct()
+                .OrderBy(d => d.Group)
+                .ThenBy(d => d.Name)
+                .ThenBy(d => d.Version))
             {
-                foreach (var d in p.Dependencies)
-                    bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
+                bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
             }
         }
 
