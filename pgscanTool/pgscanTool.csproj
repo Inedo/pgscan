@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFrameworks>net6.0;net7.0</TargetFrameworks>
 		<RootNamespace>Inedo.DependencyScan</RootNamespace>
 		<LangVersion>latest</LangVersion>
 		<Authors>Inedo</Authors>
 		<Company>Inedo</Company>
 		<Product>ProGet</Product>
 		<Description>Scans for NuGet, npm, or PyPI dependencies and optionally publishes them to a ProGet instance.</Description>
-		<Copyright>Copyright © Inedo 2022</Copyright>
+		<Copyright>Copyright © Inedo 2023</Copyright>
 		<PackAsTool>true</PackAsTool>
 		<AssemblyName>pgscan</AssemblyName>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
