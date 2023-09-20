@@ -353,6 +353,8 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
                     Console.WriteLine("  --include-folder=<solution folder or list of solution folders separated by '|'> (nuget packages only)");
+                    Console.WriteLine("  --package-lock-only (npm ONLY: will omit package-lock.json files found under node_modules)");
+                    Console.WriteLine("  --include-dev (npm ONLY: will include dev dependencies)");
                     Console.WriteLine("  --output-file=<file name> (For debugging: Writes sbom to local file instead of sending it to ProGet)");
                     Console.WriteLine();
                     break;
@@ -375,6 +377,8 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("  --consumer-package-file=<name of file to read package name and version from (e.g. a dll or exe)>");
                     Console.WriteLine("  --api-key=<ProGet API key>");
                     Console.WriteLine("  --consider-project-references (treat project references as package references)");
+                    Console.WriteLine("  --package-lock-only (npm ONLY: will omit package-lock.json files found under node_modules)");
+                    Console.WriteLine("  --include-dev (npm ONLY: will include dev dependencies)");
                     Console.WriteLine("  --include-folder=<solution folder or list of solution folders separated by '|'> (nuget packages only)");
                     Console.WriteLine();
                     break;

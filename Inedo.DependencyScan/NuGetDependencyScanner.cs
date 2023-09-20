@@ -20,6 +20,7 @@ namespace Inedo.DependencyScan
         private bool considerProjectReferences = false;
         private bool scanForChildNpmDependencies = true;
         public override DependencyScannerType Type => DependencyScannerType.NuGet;
+        IReadOnlyDictionary<string, string> namedArguments = new Dictionary<string,string>();
 
 
         public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
@@ -80,6 +81,7 @@ namespace Inedo.DependencyScan
 
         public void SetArgs(IReadOnlyDictionary<string, string> namedArguments)
         {
+            this.namedArguments = namedArguments;
             // check if solution folders should be used
             if (namedArguments.TryGetValue("include-folder", out var folders))
             {
@@ -224,14 +226,12 @@ namespace Inedo.DependencyScan
 
         private async IAsyncEnumerable<DependencyPackage> FindNpmPackagesAsync(string projectPath, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            await foreach(var npmProjectFile in this.FileSystem.FindFilesAsync(projectPath, "package-lock.json", true, cancellationToken))
+            var npmScanner = DependencyScanner.GetScanner(projectPath, DependencyScannerType.Npm, this.FileSystem) as NpmDependencyScanner;
+            npmScanner.SetArgs(namedArguments);
+            foreach(var npmProject in await npmScanner.ResolveDependenciesAsync(cancellationToken: cancellationToken))
             {
-                var npmScanner = DependencyScanner.GetScanner(npmProjectFile.FullName, DependencyScannerType.Npm, this.FileSystem);
-                foreach(var npmProject in await npmScanner.ResolveDependenciesAsync(cancellationToken: cancellationToken))
-                {
-                    foreach(var npmDependency in npmProject.Dependencies)
-                        yield return npmDependency;
-                }
+                foreach(var npmDependency in npmProject.Dependencies)
+                    yield return npmDependency;
             }
         }
 

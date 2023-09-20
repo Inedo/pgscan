@@ -1,27 +1,49 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Inedo.DependencyScan
 {
-    internal sealed class NpmDependencyScanner : DependencyScanner
+    internal sealed class NpmDependencyScanner : DependencyScanner, IConfigurableDependencyScanner
     {
+        private bool packageLockOnly = false;
+        private bool includeDevDependencies = false;
+        IReadOnlyDictionary<string, string> namedArguments = new Dictionary<string, string>();
+        public void SetArgs(IReadOnlyDictionary<string, string> namedArguments)
+        {
+            this.namedArguments = namedArguments;
+            packageLockOnly = namedArguments.ContainsKey("package-lock-only");
+            includeDevDependencies = namedArguments.ContainsKey("include-dev");
+        }
+
         public override DependencyScannerType Type => DependencyScannerType.Npm;
 
         public override async Task<IReadOnlyCollection<ScannedProject>> ResolveDependenciesAsync(CancellationToken cancellationToken = default)
         {
-            var packageLockPath = this.FileSystem.Combine(this.FileSystem.GetDirectoryName(this.SourcePath), "package-lock.json");
+            var projects = new List<ScannedProject>();
+            var searchDirectory = (await this.FileSystem.FileExistsAsync(this.SourcePath, cancellationToken)) 
+                ? this.FileSystem.GetDirectoryName(this.SourcePath)
+                : this.SourcePath;
+            await foreach (var packageLockFile in this.FileSystem.FindFilesAsync(searchDirectory, "package-lock.json", !this.SourcePath.EndsWith("package-lock.json"), cancellationToken))
+            {
+                if (packageLockOnly && packageLockFile.FullName.IndexOf("node_modules", StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue;
 
-            using var stream = await this.FileSystem.OpenReadAsync(packageLockPath, cancellationToken).ConfigureAwait(false);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+                using var stream = await this.FileSystem.OpenReadAsync(packageLockFile.FullName, cancellationToken).ConfigureAwait(false);
+                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var projectName = doc.RootElement.GetProperty("name").GetString();
-            return new[] { new ScannedProject(projectName, ReadPackageLockFile(doc).Distinct()) };
+                var projectName = doc.RootElement.GetProperty("name").GetString();
+                projects.Add(new ScannedProject(projectName, ReadPackageLockFile(doc).Distinct()));
+            }
+
+            return projects;
         }
 
-        private static IEnumerable<DependencyPackage> ReadPackageLockFile(JsonDocument doc)
+        private IEnumerable<DependencyPackage> ReadPackageLockFile(JsonDocument doc)
         {
             // works for file format version 2 & 3 (and probably later versions as well)
             if (doc.RootElement.TryGetProperty("packages", out var npmDependencyPackages))
@@ -36,7 +58,7 @@ namespace Inedo.DependencyScan
         /// </summary>
         /// <param name="npmDependencyPackages"></param>
         /// <returns></returns>
-        private static IEnumerable<DependencyPackage> ReadPackages(JsonElement npmDependencyPackages)
+        private IEnumerable<DependencyPackage> ReadPackages(JsonElement npmDependencyPackages)
         {
             foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
             {
@@ -58,6 +80,11 @@ namespace Inedo.DependencyScan
 
                 string version = npmDependencyPackage.Value.GetProperty("version").GetString();
 
+                var isDevDependency = npmDependencyPackage.Value.TryGetProperty("dev", out var dev) && dev.GetBoolean();
+
+                if (isDevDependency && !this.includeDevDependencies)
+                    continue;
+
                 // return dependency
                 yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
             }
@@ -69,43 +96,49 @@ namespace Inedo.DependencyScan
         /// </summary>
         /// <param name="doc"></param>
         /// <returns></returns>
-        private static IEnumerable<DependencyPackage> ReadDependencies(JsonElement doc)
+        private IEnumerable<DependencyPackage> ReadDependencies(JsonElement doc)
         {
             // for recursive calls: if for any reason npmDependencyPackage.Value is a primitive type instead of an object, yield nothing
             if (doc.ValueKind != JsonValueKind.Object)
                 yield break;
 
             // get "dependencies" property
-            if (!doc.TryGetProperty("dependencies", out var npmDependencyPackages))
-                    yield break;
-
-            foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
+            if (doc.TryGetProperty("dependencies", out var npmDependencyPackages))
             {
-                // skip the self reference package
-                if (npmDependencyPackage.Name.Equals(string.Empty))
-                    continue;
 
-                string name = npmDependencyPackage.Name;
-
-                string version = npmDependencyPackage.Value.GetProperty("version").GetString();
-
-                // Check for npm package alias of format 'npm:package-name@package-version'
-                if (version.StartsWith("npm:", System.StringComparison.OrdinalIgnoreCase) && version.Contains("@"))
+                foreach (var npmDependencyPackage in npmDependencyPackages.EnumerateObject())
                 {
-                    // If a npm package alias is used the information about the package is stored in the version-property
-                    // The package name starts after 'npm:' and ends at the last occurence of '@'
-                    // The package version comes after the last occurence of '@'
-                    var separator = version.LastIndexOf('@');
-                    name = version.Substring(0, separator).Remove(0, 4);
-                    version = version.Substring(separator + 1);
+                    // skip the self reference package
+                    if (npmDependencyPackage.Name.Equals(string.Empty))
+                        continue;
+
+                    string name = npmDependencyPackage.Name;
+
+                    string version = npmDependencyPackage.Value.GetProperty("version").GetString();
+
+                    // Check for npm package alias of format 'npm:package-name@package-version'
+                    if (version.StartsWith("npm:", System.StringComparison.OrdinalIgnoreCase) && version.Contains("@"))
+                    {
+                        // If a npm package alias is used the information about the package is stored in the version-property
+                        // The package name starts after 'npm:' and ends at the last occurence of '@'
+                        // The package version comes after the last occurence of '@'
+                        var separator = version.LastIndexOf('@');
+                        name = version.Substring(0, separator).Remove(0, 4);
+                        version = version.Substring(separator + 1);
+                    }
+
+                    var isDevDependency = npmDependencyPackage.Value.TryGetProperty("dev", out var dev) && dev.GetBoolean();
+
+                    if (isDevDependency && !this.includeDevDependencies)
+                        continue;
+
+                    // return dependency
+                    yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
+
+                    // check for sub-dependencies recursively
+                    foreach (var subDependency in ReadDependencies(npmDependencyPackage.Value))
+                        yield return subDependency;
                 }
-
-                // return dependency
-                yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
-
-                // check for sub-dependencies recursively
-                foreach (var subDependency in ReadDependencies(npmDependencyPackage.Value))
-                    yield return subDependency;
             }
         }
     }
