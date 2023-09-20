@@ -88,7 +88,7 @@ namespace Inedo.DependencyScan
                 .ThenBy(d => d.Name)
                 .ThenBy(d => d.Version))
             {
-                bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType);
+                bomWriter.AddPackage(d.Group, d.Name, d.Version, d.Type ?? packageType, d.Qualifier);
             }
         }
 

@@ -343,7 +343,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Publishes a minimal sbom file with project dependency data to ProGet. Requires ProGet 2022 or later.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
-                    Console.WriteLine("  --type=<nuget|npm|pypi>");
+                    Console.WriteLine("  --type=<nuget|npm|pypi|conda>");
                     Console.WriteLine("  --input=<source file name>");
                     Console.WriteLine("  --project-name=<name>");
                     Console.WriteLine("  --version=<version>");
@@ -364,7 +364,7 @@ namespace Inedo.DependencyScan
                     Console.WriteLine("Note: This option is deprecated. Use 'identify' instead.");
                     Console.WriteLine();
                     Console.WriteLine("Options:");
-                    Console.WriteLine("  --type=<nuget|npm|pypi>");
+                    Console.WriteLine("  --type=<nuget|npm|pypi|conda>");
                     Console.WriteLine("  --input=<source file name>");
                     Console.WriteLine("  --package-feed=<ProGet feed name>");
                     Console.WriteLine("  --proget-url=<ProGet base URL>");

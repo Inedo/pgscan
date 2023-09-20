@@ -60,6 +60,20 @@ namespace Inedo.DependencyScan
             internal init;
 #endif
         }
+        /// <summary>
+        /// Gets the package qualifier.
+        /// </summary>
+        public string Qualifier
+        {
+            get;
+#if !NETCOREAPP
+            internal set;
+#else
+            internal init;
+#endif
+        }
+
+
 
         /// <summary>
         /// Publishes dependency information to a ProGet server.

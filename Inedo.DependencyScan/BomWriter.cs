@@ -61,7 +61,7 @@ namespace Inedo.DependencyScan
         /// <param name="name">The package name.</param>
         /// <param name="version">The package version.</param>
         /// <param name="type">The package type (nuget,npm,pypi).</param>
-        public void AddPackage(string group, string name, string version, string type)
+        public void AddPackage(string group, string name, string version, string type, string qualifier)
         {
             this.writer.WriteStartElement("component", ns);
             this.writer.WriteAttributeString("type", "library");
@@ -74,7 +74,7 @@ namespace Inedo.DependencyScan
 
             var fullName = string.IsNullOrEmpty(group) ? name : $"{group}/{name}";
 
-            this.writer.WriteElementString("purl", ns, $"pkg:{type}/{Uri.EscapeUriString(fullName)}@{version}");
+            this.writer.WriteElementString("purl", ns, $"pkg:{type}/{Uri.EscapeUriString(fullName)}@{version}{(string.IsNullOrWhiteSpace(qualifier) ? string.Empty : ("?"+qualifier))}");
 
             this.writer.WriteEndElement(); // component
         }

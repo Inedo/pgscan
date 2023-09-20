@@ -75,6 +75,7 @@ namespace Inedo.DependencyScan
                 DependencyScannerType.NuGet => Create<NuGetDependencyScanner>(sourcePath, fs),
                 DependencyScannerType.Npm => Create<NpmDependencyScanner>(sourcePath, fs),
                 DependencyScannerType.PyPI => Create<PypiDependencyScanner>(sourcePath, fs),
+                DependencyScannerType.Conda => Create<CondaDependencyScanner>(sourcePath, fs),
                 _ => throw new ArgumentOutOfRangeException(nameof(type))
             };
         }
@@ -97,8 +98,25 @@ namespace Inedo.DependencyScan
             {
                 ".sln" or ".csproj" => DependencyScannerType.NuGet,
                 ".json" => DependencyScannerType.Npm,
-                _ => Path.GetFileName(fileName).Equals("requirements.txt", StringComparison.OrdinalIgnoreCase) ? DependencyScannerType.PyPI : DependencyScannerType.Auto
+                _ => Path.GetFileName(fileName).Equals("requirements.txt", StringComparison.OrdinalIgnoreCase) ? getPythonScannerType(fileName) : DependencyScannerType.Auto
             };
+
+            static DependencyScannerType getPythonScannerType(string fileName)
+            {
+                try
+                {
+                    using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var reader = new StreamReader(fileStream);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        string line = reader.ReadLine();
+                        if (line != null && (line.StartsWith("#") && line.IndexOf("conda create", StringComparison.OrdinalIgnoreCase) >= 0) || line.IndexOf("@EXPLICIT", StringComparison.OrdinalIgnoreCase) == 0)
+                            return DependencyScannerType.Conda;
+                    }
+                }
+                catch { }
+                return DependencyScannerType.PyPI;
+            }
         }
     }
 }

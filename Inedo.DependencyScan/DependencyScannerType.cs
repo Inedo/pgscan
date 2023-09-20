@@ -20,6 +20,10 @@
         /// <summary>
         /// PyPI.
         /// </summary>
-        PyPI
+        PyPI,
+        /// <summary>
+        /// Conda.
+        /// </summary>
+        Conda
     }
 }
