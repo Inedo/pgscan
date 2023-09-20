@@ -61,6 +61,7 @@ namespace Inedo.DependencyScan
         /// <param name="name">The package name.</param>
         /// <param name="version">The package version.</param>
         /// <param name="type">The package type (nuget,npm,pypi).</param>
+        /// <param name="qualifier">Additional qualifier text.  Is appended to the end of the purl</param>
         public void AddPackage(string group, string name, string version, string type, string qualifier)
         {
             this.writer.WriteStartElement("component", ns);
