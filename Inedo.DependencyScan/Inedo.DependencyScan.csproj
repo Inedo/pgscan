@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
+		<TargetFramework>net6.0</TargetFramework>
 		<LangVersion>latest</LangVersion>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Authors>Inedo</Authors>
@@ -19,7 +19,6 @@
     <NoWarn>CS1591;SYSLIB0013;SYSLIB0014;SYSLIB0020</NoWarn>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>Inedo.DependencyScan.snk</AssemblyOriginatorKeyFile>
-    <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
   </PropertyGroup>
 	<ItemGroup>
 	  <PackageReference Include="System.Text.Json" Version="6.0.5" />
