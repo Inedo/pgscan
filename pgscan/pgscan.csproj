@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFrameworks>net6.0;net462</TargetFrameworks>
+		<TargetFrameworks>net6.0</TargetFrameworks>
 		<RootNamespace>Inedo.DependencyScan</RootNamespace>
 		<LangVersion>latest</LangVersion>
     <NoWarn>SYSLIB0013;SYSLIB0014</NoWarn>
