@@ -78,7 +78,11 @@ namespace Inedo.DependencyScan
                 if (npmDependencyPackage.Value.TryGetProperty("name", out var alias) && alias.ValueKind == JsonValueKind.String)
                     name = alias.GetString();
 
-                string version = npmDependencyPackage.Value.GetProperty("version").GetString();
+
+                if (!npmDependencyPackage.Value.TryGetProperty("version", out var versionProperty))
+                    continue;
+
+                string version = versionProperty.GetString();
 
                 var isDevDependency = npmDependencyPackage.Value.TryGetProperty("dev", out var dev) && dev.GetBoolean();
 
