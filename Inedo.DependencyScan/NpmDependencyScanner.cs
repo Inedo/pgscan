@@ -90,7 +90,7 @@ namespace Inedo.DependencyScan
                     continue;
 
                 // return dependency
-                yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
+                yield return CreateNpmDependencyPackage(name, version);
             }
 
         }
@@ -137,7 +137,7 @@ namespace Inedo.DependencyScan
                         continue;
 
                     // return dependency
-                    yield return new DependencyPackage { Name = name, Version = version, Type = "npm" };
+                    yield return CreateNpmDependencyPackage(name, version);
 
                     // check for sub-dependencies recursively
                     foreach (var subDependency in ReadDependencies(npmDependencyPackage.Value))
@@ -145,5 +145,25 @@ namespace Inedo.DependencyScan
                 }
             }
         }
+
+        private static DependencyPackage CreateNpmDependencyPackage(string name, string version)
+        {
+            if (string.IsNullOrEmpty(name))
+                return null;
+
+            // Check for scoped name ("@scopename/packagename")
+            string group = null;
+            var parts = name.Split('/', 2);
+            if (name.StartsWith('@') && parts.Length == 2)
+            {
+                // group = scope name
+                group = parts[0];
+                // name = package name
+                name = parts[1];
+            }
+
+            return new DependencyPackage { Group = group, Name = name, Version = version, Type = "npm" };
+        }
+
     }
 }
